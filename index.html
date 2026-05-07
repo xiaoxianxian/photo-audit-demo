@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>供稿审核后台 | Photo Audit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0a0a0a',
+                        surface: '#171717',
+                        surfaceHover: '#262626',
+                        border: '#27272a',
+                        primary: '#e4e4e7',
+                        secondary: '#a1a1aa',
+                        success: '#059669',
+                        successHover: '#047857',
+                        danger: '#dc2626',
+                        dangerHover: '#b91c1c'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #e4e4e7;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27272a; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46; 
+        }
+
+        .fade-out {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: all 0.3s ease-out;
+        }
+
+        .toast-enter {
+            animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .toast-leave {
+            animation: slideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+
+        .upload-dashed {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%233f3f46' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            border-radius: 12px;
+        }
+        .upload-dashed:hover, .upload-dashed.dragover {
+            background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%2371717a' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+            background-color: rgba(39, 39, 42, 0.3);
+        }
+        
+        .dropdown-enter {
+            animation: fadeIn 0.15s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-gray-700">
+
+    <!-- Header -->
+    <header class="h-16 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-40 flex items-center px-6 justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-surface border border-border flex items-center justify-center">
+                <i data-lucide="camera" class="w-4 h-4 text-primary"></i>
+            </div>
+            <h1 class="text-sm font-medium tracking-wide">Photo Audit Workspace</h1>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-secondary">
+            <span class="flex items-center gap-2 hover:text-primary cursor-pointer transition-colors">
+                <i data-lucide="bell" class="w-4 h-4"></i>
+            </span>
+            <div class="w-px h-4 bg-border"></div>
+            <div class="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
+                <div class="w-6 h-6 rounded-full bg-surface border border-border overflow-hidden">
+                    <img src="https://ui-avatars.com/api/?name=Admin&background=27272a&color=e4e4e7" alt="Avatar">
+                </div>
+                <span>Admin</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8">
+        
+        <!-- Left Sidebar -->
+        <section class="flex flex-col gap-6">
+            <!-- Upload Section -->
+            <div class="flex flex-col gap-4">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-secondary mb-2">Upload Queue</h2>
+                
+                <div id="upload-zone" class="upload-dashed h-48 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group relative overflow-hidden">
+                    <!-- Initial State -->
+                    <div id="upload-initial" class="flex flex-col items-center text-center px-4">
+                        <div class="w-10 h-10 rounded-full bg-surface border border-border flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <i data-lucide="upload-cloud" class="w-5 h-5 text-secondary group-hover:text-primary transition-colors"></i>
+                        </div>
+                        <p class="text-sm font-medium text-primary mb-1">Click or drag image</p>
+                        <p class="text-xs text-secondary">RAW, TIFF, or high-res JPEG</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="upload-loading" class="hidden flex-col items-center text-center px-4 w-full">
+                        <i data-lucide="loader-2" class="w-6 h-6 text-primary animate-spin mb-3"></i>
+                        <p class="text-sm font-medium text-primary mb-2">Processing image...</p>
+                        <div class="w-3/4 h-1 bg-surface rounded-full overflow-hidden">
+                            <div class="h-full bg-primary rounded-full w-2/3 animate-pulse"></div>
+                        </div>
+                    </div>
+
+                    <!-- Success State -->
+                    <div id="upload-success" class="hidden flex-col items-center text-center px-4">
+                        <div class="w-10 h-10 rounded-full bg-success/10 border border-success/20 flex items-center justify-center mb-3">
+                            <i data-lucide="check" class="w-5 h-5 text-success"></i>
+                        </div>
+                        <p class="text-sm font-medium text-success">Upload Complete</p>
+                        <p class="text-xs text-secondary mt-1">Moved to review queue</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Module -->
+            <div class="p-5 rounded-xl border border-border bg-surface flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-secondary flex items-center gap-2">
+                        <i data-lucide="bar-chart-2" class="w-4 h-4"></i> 今日统计
+                    </h3>
+                    <span class="text-[10px] text-primary/50 bg-background px-2 py-0.5 rounded uppercase tracking-wider">业务实时看板</span>
+                </div>
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="flex justify-between items-center bg-background rounded-lg p-3 border border-border/50">
+                        <span class="text-sm text-secondary">今日已审</span>
+                        <span id="stat-reviewed-today" class="text-lg font-semibold text-primary">128</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-background rounded-lg p-3 border border-border/50">
+                        <span class="text-sm text-secondary">平均出审时效</span>
+                        <span class="text-lg font-semibold text-primary">1.2s</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-background rounded-lg p-3 border border-border/50">
+                        <span class="text-sm text-secondary">机审召回率</span>
+                        <span class="text-lg font-semibold text-success">99.2%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Log Module -->
+            <div class="p-5 rounded-xl border border-border bg-surface flex flex-col gap-4">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-secondary flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4"></i> 审核日志
+                </h3>
+                <div class="bg-background rounded-lg border border-border/50 h-48 overflow-y-auto p-3 flex flex-col gap-2" id="audit-log-container">
+                    <!-- Logs go here -->
+                </div>
+            </div>
+
+            <!-- Guidelines -->
+            <div class="p-4 rounded-xl border border-border bg-surface text-xs text-secondary leading-relaxed">
+                <div class="flex items-center gap-2 mb-2 text-primary font-medium">
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                    <span>Review Guidelines</span>
+                </div>
+                <p>Check for focus, exposure, composition, and noise. Ensure no copyright or sensitive content violations.</p>
+            </div>
+        </section>
+
+        <!-- Right Content: Review Workbench -->
+        <section class="flex flex-col gap-4">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-secondary">Review Workbench</h2>
+                <div class="text-xs text-secondary"><span id="queue-count">3</span> items pending</div>
+            </div>
+
+            <div id="review-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- Card 1 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="1">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1682687220742-aba13b6e50ba?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@alex_photo</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 10:23</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">RAW</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="2">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@sarah_lens</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 09:45</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">TIFF</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="3">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1682687982501-1e58f81014ab?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@mike_visuals</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 08:12</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">JPEG</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="4">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1682687220063-4742bd7fd538?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@david_shots</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 07:30</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">JPEG</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 5 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="5">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-orange-400"></i>
+                            <span class="text-[11px] font-medium text-orange-200">AI 机审建议：疑似版权风险</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@nature_lover</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 07:15</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">PNG</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 6 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="6">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@forest_walker</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-07 06:42</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">RAW</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 7 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="7">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="x-circle" class="w-3.5 h-3.5 text-danger"></i>
+                            <span class="text-[11px] font-medium text-red-200">AI 机审建议：画面模糊</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 blur-[2px]">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@mountain_high</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-06 23:50</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">JPEG</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 8 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="8">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@scenic_views</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-06 22:10</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">TIFF</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 9 -->
+                <div class="review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20" data-id="9">
+                    <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                        <!-- AI Tag -->
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-success"></i>
+                            <span class="text-[11px] font-medium text-gray-200">AI 机审建议：建议通过</span>
+                        </div>
+
+                        <img src="https://images.unsplash.com/photo-1470071131384-001b85755f96?w=800&q=80" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                        <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                            <div>
+                                <p class="text-sm font-medium text-white">@wild_life</p>
+                                <p class="text-xs text-gray-400 mt-0.5">2026-05-06 20:05</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">RAW</span>
+                        </div>
+                    </div>
+                    <div class="p-3 flex gap-2">
+                        <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Approve
+                        </button>
+                        <div class="relative flex-1">
+                            <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Reject
+                            </button>
+                            <!-- Reject Dropdown -->
+                            <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                                <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                                <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                                <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden flex-col items-center justify-center py-24 border border-border border-dashed rounded-xl bg-surface/30 text-secondary mt-4">
+                <i data-lucide="inbox" class="w-12 h-12 mb-4 opacity-40"></i>
+                <p class="text-base font-medium text-primary">全部处理完成！</p>
+                <p class="text-sm mt-1">当前没有需要审核的稿件。</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Appeal Modal -->
+    <div id="appeal-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-95 opacity-0 transition-all duration-200" id="appeal-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">发起申诉</h3>
+                <button onclick="closeAppealModal()" class="text-secondary hover:text-primary"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <p class="text-sm text-secondary mb-4">请填写供稿 <span id="appeal-card-id" class="text-primary font-medium"></span> 的申诉理由：</p>
+            <textarea id="appeal-text" rows="4" class="w-full bg-background border border-border rounded-lg p-3 text-sm text-primary focus:outline-none focus:border-gray-500 transition-colors placeholder:text-gray-600" placeholder="例如：该图片为本人原创，已获得授权..."></textarea>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeAppealModal()" class="px-4 py-2 rounded-lg text-sm font-medium text-secondary hover:text-primary hover:bg-surfaceHover transition-colors">取消</button>
+                <button onclick="submitAppeal()" class="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-background hover:bg-white transition-colors">提交申诉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize icons
+        lucide.createIcons();
+
+        // --- Toast System ---
+        function showToast(message, type = 'success', cardId = null) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const isSuccess = type === 'success';
+            const icon = isSuccess ? 'check-circle' : 'alert-circle';
+            const bgColor = isSuccess ? 'bg-[#18181b]' : 'bg-[#18181b]';
+            const borderColor = isSuccess ? 'border-success/30' : 'border-danger/30';
+            const iconColor = isSuccess ? 'text-success' : 'text-danger';
+
+            let actionHtml = '';
+            if (type === 'error' && cardId) {
+                actionHtml = `<button onclick="openAppealModal('${cardId}')" class="ml-auto text-xs font-medium text-primary hover:text-white underline decoration-primary/30 underline-offset-2 transition-colors pointer-events-auto">Appeal (申诉)</button>`;
+            }
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg border ${borderColor} ${bgColor} shadow-xl shadow-black/50 backdrop-blur-md toast-enter min-w-[280px] pointer-events-auto`;
+            
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-4 h-4 ${iconColor}"></i>
+                <span class="text-sm font-medium text-gray-200">${message}</span>
+                ${actionHtml}
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons({ root: toast });
+
+            // Remove toast after 3s (or 6s for errors to allow clicking appeal)
+            const duration = type === 'error' ? 6000 : 3000;
+            setTimeout(() => {
+                toast.classList.replace('toast-enter', 'toast-leave');
+                toast.addEventListener('animationend', () => {
+                    toast.remove();
+                });
+            }, duration);
+        }
+
+        // --- Audit Log System ---
+        let auditLogs = JSON.parse(localStorage.getItem('photoAudit_logs') || '[]');
+        
+        function renderLogs() {
+            const container = document.getElementById('audit-log-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (auditLogs.length === 0) {
+                container.innerHTML = '<p class="text-xs text-secondary/50 italic text-center mt-4">暂无审核日志</p>';
+                return;
+            }
+
+            auditLogs.forEach(log => {
+                const el = document.createElement('div');
+                el.className = 'text-[11px] leading-relaxed text-secondary border-b border-border/30 pb-2 last:border-0 last:pb-0';
+                const formattedLog = log.replace(/\[(.*?)\]/, '<span class="text-primary/60">[$1]</span>')
+                                        .replace(/#(\d+)/g, '<span class="text-primary font-medium">#$1</span>');
+                el.innerHTML = formattedLog;
+                container.appendChild(el);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addLog(message) {
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            const fullMessage = `[${timeStr}] ${message}`;
+            
+            auditLogs.push(fullMessage);
+            localStorage.setItem('photoAudit_logs', JSON.stringify(auditLogs));
+            renderLogs();
+        }
+
+        renderLogs();
+
+        // --- Appeal Logic ---
+        let currentAppealId = null;
+
+        window.openAppealModal = function(id) {
+            currentAppealId = id;
+            document.getElementById('appeal-card-id').textContent = `#${id}`;
+            document.getElementById('appeal-text').value = '';
+            
+            const modal = document.getElementById('appeal-modal');
+            const content = document.getElementById('appeal-modal-content');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        window.closeAppealModal = function() {
+            const modal = document.getElementById('appeal-modal');
+            const content = document.getElementById('appeal-modal-content');
+            
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                currentAppealId = null;
+            }, 200);
+        }
+
+        window.submitAppeal = function() {
+            if (!currentAppealId) return;
+            const text = document.getElementById('appeal-text').value.trim();
+            if (!text) {
+                alert('请输入申诉理由');
+                return;
+            }
+            
+            addLog(`摄影师对 #${currentAppealId} 发起了申诉`);
+            closeAppealModal();
+            showToast('申诉已提交，请等待处理', 'success');
+        }
+
+        // --- Review Actions ---
+        let reviewedCards = JSON.parse(localStorage.getItem('photoAudit_reviewedCards') || '[]');
+        let reviewedTodayCount = parseInt(localStorage.getItem('photoAudit_reviewedToday') || '128', 10);
+        
+        // Apply initial state
+        document.getElementById('stat-reviewed-today').textContent = reviewedTodayCount;
+        document.querySelectorAll('.review-card').forEach(card => {
+            if (reviewedCards.includes(card.getAttribute('data-id'))) {
+                card.remove();
+            }
+        });
+        
+        let currentQueue = document.querySelectorAll('.review-card').length;
+
+        function updateQueueCount() {
+            const countEl = document.getElementById('queue-count');
+            countEl.textContent = currentQueue;
+            if (currentQueue === 0) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                document.getElementById('empty-state').classList.add('flex');
+            }
+        }
+        
+        // Initialize UI with correct counts
+        updateQueueCount();
+
+        // Pass Action
+        window.handleAction = function(btn, action) {
+            if (action === 'pass') {
+                const card = btn.closest('.review-card');
+                const id = card.getAttribute('data-id');
+                removeCard(card, '稿件已通过审核', 'success', id);
+                addLog(`Admin 已通过供稿 #${id}`);
+            }
+        }
+
+        // Reject Dropdown Toggle
+        window.toggleRejectMenu = function(event, btn) {
+            event.stopPropagation();
+            // Close other open menus
+            document.querySelectorAll('.reject-dropdown').forEach(el => {
+                if (el !== btn.nextElementSibling) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            });
+            
+            const dropdown = btn.nextElementSibling;
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+                dropdown.classList.add('flex');
+            } else {
+                dropdown.classList.add('hidden');
+                dropdown.classList.remove('flex');
+            }
+        }
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.reject-dropdown').forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            });
+        });
+
+        // Confirm Reject
+        window.confirmReject = function(btn, reason) {
+            const card = btn.closest('.review-card');
+            const id = card.getAttribute('data-id');
+            removeCard(card, `已打回：${reason}`, 'error', id);
+            addLog(`Admin 已打回供稿 #${id}，原因：${reason}`);
+        }
+
+        function removeCard(card, toastMessage, toastType, cardId = null) {
+            const id = card.getAttribute('data-id');
+            
+            // Persist state to localStorage
+            if (!reviewedCards.includes(id)) {
+                reviewedCards.push(id);
+                localStorage.setItem('photoAudit_reviewedCards', JSON.stringify(reviewedCards));
+            }
+            
+            reviewedTodayCount++;
+            localStorage.setItem('photoAudit_reviewedToday', reviewedTodayCount.toString());
+            document.getElementById('stat-reviewed-today').textContent = reviewedTodayCount;
+
+            card.classList.add('fade-out');
+            setTimeout(() => {
+                card.remove();
+                currentQueue--;
+                updateQueueCount();
+                showToast(toastMessage, toastType, cardId);
+            }, 300);
+        }
+        
+        // Expose a reset function for testing convenience
+        window.resetDemo = function() {
+            localStorage.removeItem('photoAudit_reviewedCards');
+            localStorage.removeItem('photoAudit_reviewedToday');
+            localStorage.removeItem('photoAudit_logs');
+            location.reload();
+        }
+
+        // --- Upload Simulation ---
+        const uploadZone = document.getElementById('upload-zone');
+        const stateInitial = document.getElementById('upload-initial');
+        const stateLoading = document.getElementById('upload-loading');
+        const stateSuccess = document.getElementById('upload-success');
+        let isUploading = false;
+
+        function triggerUpload() {
+            if (isUploading) return;
+            isUploading = true;
+
+            // Show loading
+            stateInitial.classList.add('hidden');
+            stateInitial.classList.remove('flex');
+            stateLoading.classList.remove('hidden');
+            stateLoading.classList.add('flex');
+
+            // Simulate upload time (2s)
+            setTimeout(() => {
+                stateLoading.classList.add('hidden');
+                stateLoading.classList.remove('flex');
+                stateSuccess.classList.remove('hidden');
+                stateSuccess.classList.add('flex');
+                
+                showToast('上传成功，已进入待审队列', 'success');
+
+                // Reset after 3s
+                setTimeout(() => {
+                    stateSuccess.classList.add('hidden');
+                    stateSuccess.classList.remove('flex');
+                    stateInitial.classList.remove('hidden');
+                    stateInitial.classList.add('flex');
+                    isUploading = false;
+                }, 3000);
+
+            }, 2000);
+        }
+
+        uploadZone.addEventListener('click', triggerUpload);
+        
+        // Drag events for styling
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if(!isUploading) uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            triggerUpload();
+        });
+
+    </script>
+</body>
+</html>
