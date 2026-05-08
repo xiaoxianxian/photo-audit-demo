@@ -120,6 +120,43 @@
         </div>
     </header>
 
+    <!-- API Key Banner (Not Configured) -->
+    <div id="api-key-banner" class="bg-amber-950/60 border-b border-amber-500/20 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i>
+            </div>
+            <span id="api-banner-text" class="text-sm text-amber-200/80">接入真实 AI 审核能力：请输入 API Key</span>
+            <select id="api-provider-select" class="bg-background border border-amber-500/30 rounded-md px-2 py-1.5 text-sm text-primary focus:outline-none focus:border-amber-400 transition-colors cursor-pointer">
+                <option value="gemini">Gemini</option>
+                <option value="deepseek">DeepSeek</option>
+            </select>
+            <input id="api-key-input" type="password" placeholder="请输入 API Key..." class="bg-background border border-amber-500/30 rounded-md px-3 py-1.5 text-sm text-primary w-64 focus:outline-none focus:border-amber-400 transition-colors placeholder:text-gray-600" />
+            <button id="save-api-key-btn" onclick="saveApiKey()" class="px-3 py-1.5 bg-amber-500 text-black text-sm font-medium rounded-md hover:bg-amber-400 transition-colors cursor-pointer">启用 AI</button>
+        </div>
+        <div class="flex items-center gap-2">
+            <a id="api-key-link" href="https://aistudio.google.com/apikey" target="_blank" class="text-xs text-amber-400/60 hover:text-amber-400 transition-colors underline decoration-amber-400/30">获取 Key</a>
+            <button onclick="dismissApiBanner()" class="text-amber-400/40 hover:text-amber-400 transition-colors cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- API Key Connected Banner -->
+    <div id="api-connected-banner" class="hidden bg-emerald-950/60 border-b border-emerald-500/20 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                <i data-lucide="check" class="w-3 h-3 text-emerald-400"></i>
+            </div>
+            <span id="api-connected-text" class="text-sm text-emerald-200/80">AI 已连接</span>
+            <span class="text-xs text-emerald-400/50">上传图片后将自动进行 AI 审核</span>
+        </div>
+        <button onclick="clearApiKey()" class="text-xs text-emerald-400/50 hover:text-emerald-400 transition-colors cursor-pointer">更换 Key</button>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="real-file-input" accept="image/*" class="hidden" />
+
     <!-- Main Content -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8">
         
@@ -592,6 +629,31 @@
         </div>
     </div>
 
+    <!-- Quota Exhausted Switch Modal -->
+    <div id="quota-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface border border-border rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-95 opacity-0 transition-all duration-200" id="quota-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                        <i data-lucide="battery-warning" class="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <h3 id="quota-modal-title" class="text-lg font-semibold text-primary">额度已达上限</h3>
+                </div>
+                <button onclick="closeQuotaModal()" class="text-secondary hover:text-primary">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <p id="quota-modal-body" class="text-sm text-secondary mb-6 leading-relaxed">Gemini 免费额度已耗尽。是否一键切换至 DeepSeek 继续审核？</p>
+            <div class="flex gap-3">
+                <button onclick="closeQuotaModal()" class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-secondary hover:text-primary hover:bg-surfaceHover border border-border transition-colors">取消</button>
+                <button id="quota-switch-btn" onclick="switchProviderFromQuota()" class="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+                    切换并继续审核
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Initialize icons
         lucide.createIcons();
@@ -815,36 +877,416 @@
             localStorage.removeItem('photoAudit_reviewedCards');
             localStorage.removeItem('photoAudit_reviewedToday');
             localStorage.removeItem('photoAudit_logs');
+            currentApiKey = '';
+            currentProvider = 'gemini';
+            document.getElementById('api-key-input').value = '';
+            document.getElementById('api-provider-select').value = 'gemini';
+            uploadCardCounter = 100;
             location.reload();
         }
 
-        // --- Upload Simulation ---
+        // --- API Key Management ---
+        let currentApiKey = '';
+        let currentProvider = 'gemini';
+
+        const apiKeyLinks = {
+            gemini: 'https://aistudio.google.com/apikey',
+            deepseek: 'https://platform.deepseek.com/api_keys'
+        };
+
+        document.getElementById('api-provider-select').addEventListener('change', function() {
+            currentProvider = this.value;
+            document.getElementById('api-key-link').href = apiKeyLinks[currentProvider];
+        });
+
+        window.saveApiKey = function() {
+            const input = document.getElementById('api-key-input');
+            const key = input.value.trim();
+            if (!key) {
+                showToast('请输入有效的 API Key', 'error');
+                return;
+            }
+            currentApiKey = key;
+            currentProvider = document.getElementById('api-provider-select').value;
+            const providerName = currentProvider === 'gemini' ? 'Gemini' : 'DeepSeek';
+            document.getElementById('api-key-banner').classList.add('hidden');
+            document.getElementById('api-connected-banner').classList.remove('hidden');
+            document.getElementById('api-connected-text').textContent = `${providerName} AI 已连接`;
+            document.getElementById('real-file-input').setAttribute('data-ready', 'true');
+            showToast(`${providerName} AI 已成功连接`, 'success');
+        };
+
+        window.dismissApiBanner = function() {
+            document.getElementById('api-key-banner').classList.add('hidden');
+        };
+
+        window.clearApiKey = function() {
+            currentApiKey = '';
+            document.getElementById('api-key-banner').classList.remove('hidden');
+            document.getElementById('api-connected-banner').classList.add('hidden');
+            document.getElementById('api-key-input').value = '';
+            document.getElementById('real-file-input').removeAttribute('data-ready');
+            showToast('API Key 已清除', 'error');
+        };
+
+        // --- Image Resize Helper ---
+        function resizeImageForAPI(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const maxDim = 1024;
+                        let w = img.width;
+                        let h = img.height;
+                        if (Math.max(w, h) > maxDim) {
+                            const ratio = maxDim / Math.max(w, h);
+                            w = Math.round(w * ratio);
+                            h = Math.round(h * ratio);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve({
+                            base64: canvas.toDataURL(file.type).split(',')[1],
+                            mimeType: file.type
+                        });
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // --- AI API Call (Dispatcher) ---
+
+        class QuotaExhaustedError extends Error {
+            constructor(provider, originalError) {
+                super(`${provider} 额度已达上限`);
+                this.provider = provider;
+                this.originalError = originalError;
+                this.name = 'QuotaExhaustedError';
+            }
+        }
+
+        function detectQuotaError(provider, status, errorText) {
+            const lower = errorText.toLowerCase();
+            if (provider === 'gemini') {
+                if (status === 429) return true;
+                if (lower.includes('quota') || lower.includes('resource_exhausted') || lower.includes('billing')) return true;
+            }
+            if (provider === 'deepseek') {
+                if (status === 402 || status === 429) return true;
+                if (lower.includes('quota') || lower.includes('insufficient') || lower.includes('balance') || lower.includes('billing')) return true;
+            }
+            return false;
+        }
+
+        const AI_PROMPT = `You are a professional photo audit AI for a stock photography platform. Analyze this image and return ONLY a valid JSON object (no markdown, no code fences) with exactly these fields:
+- is_safe: boolean (true if the image is safe for commercial use, false if it contains violence, nudity, politically sensitive content, blatant copyright violations, or hate symbols)
+- score: integer from 0 to 100 (overall quality and safety score; 100 = perfect, below 50 = should be rejected)
+- reason: string in Chinese (a short, professional one-sentence explanation of your assessment, max 30 characters)
+
+Return ONLY the JSON, nothing else.`;
+
+        async function callAIForReview(base64Image, mimeType) {
+            if (currentProvider === 'deepseek') {
+                return callDeepseekForReview(base64Image, mimeType);
+            }
+            return callGeminiForReview(base64Image, mimeType);
+        }
+
+        async function callGeminiForReview(base64Image, mimeType) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentApiKey}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: AI_PROMPT },
+                            { inline_data: { mime_type: mimeType, data: base64Image } }
+                        ]
+                    }],
+                    generationConfig: {
+                        temperature: 0.2,
+                        maxOutputTokens: 200
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                if (detectQuotaError('gemini', response.status, err)) {
+                    throw new QuotaExhaustedError('Gemini', err);
+                }
+                throw new Error(`Gemini API 错误 (${response.status}): ${err}`);
+            }
+
+            const data = await response.json();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return parseAIResponse(rawText);
+        }
+
+        const DEEPSEEK_TEXT_PROMPT = `You are a professional photo audit simulator for a stock photography platform. You will receive metadata about an uploaded image. Based on the metadata, generate a realistic audit result with the following rules.
+
+CRITICAL RULES:
+1. FORMAT & SIZE ANALYSIS:
+   - PNG + size < 50KB → Highly suspicious of being a screenshot or stolen web image. Set is_safe=false, score 30-45. Reason MUST mention "版权存疑" or "疑似非摄影原创" or "文件异常偏小".
+   - PNG + size 50-200KB → Moderate suspicion. Set is_safe=true (borderline), score 50-65. Reason should mention "建议人工复核版权".
+   - PNG + size > 200KB → Normal. Treat as regular image.
+   - RAW/TIFF + size > 5MB (5000KB) → Professional-grade original. Set score 85-95. Reason should mention "高质量原始文件".
+   - JPEG + size > 2MB (2000KB) → Good quality. Set score 75-90.
+   - JPEG + size < 200KB → Heavily compressed, possible quality loss. Set score 45-65. Reason mention "画质压缩严重".
+
+2. COPYRIGHT RISK ASSESSMENT:
+   - If format is WEBP or GIF, add 10-20% randomness: occasionally flag as "疑似第三方转载".
+   - Unusual formats (BMP, TIFF from non-pro cameras) should get slightly lower scores.
+
+3. GENERAL RULES:
+   - Vary scores realistically within the ranges above. Do NOT always pick the midpoint.
+   - is_safe is normally true, EXCEPT when PNG < 50KB (always false) or when format is extremely suspicious.
+   - Keep reason in Chinese, professional, max 28 characters.
+
+Return ONLY a valid JSON object (no markdown, no code fences) with exactly these fields:
+- is_safe: boolean
+- score: integer from 0 to 100
+- reason: string in Chinese (max 28 characters)
+
+Return ONLY the JSON, nothing else.`;
+
+        async function callDeepseekForReview(base64Image, mimeType) {
+            const fileSizeKB = Math.round(base64Image.length * 0.75 / 1024);
+            const fileSizeMB = (fileSizeKB / 1024).toFixed(2);
+            const formatName = mimeType.split('/')[1].toUpperCase();
+            const metadataPrompt = `Image metadata — format: ${formatName}, size: ${fileSizeKB}KB (${fileSizeMB}MB), mime: ${mimeType}`;
+
+            const url = 'https://api.deepseek.com/chat/completions';
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${currentApiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [{
+                        role: 'system',
+                        content: DEEPSEEK_TEXT_PROMPT
+                    }, {
+                        role: 'user',
+                        content: metadataPrompt
+                    }],
+                    temperature: 0.7,
+                    max_tokens: 200
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                if (detectQuotaError('deepseek', response.status, err)) {
+                    throw new QuotaExhaustedError('DeepSeek', err);
+                }
+                throw new Error(`DeepSeek API 错误 (${response.status}): ${err}`);
+            }
+
+            const data = await response.json();
+            const rawText = data.choices?.[0]?.message?.content || '';
+            const result = parseAIResponse(rawText);
+            result.note = `（DeepSeek 文本模型基于文件大小 ${fileSizeKB}KB 评估）`;
+            return result;
+        }
+
+        function parseAIResponse(rawText) {
+            const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('无法解析 AI 返回的 JSON');
+            const result = JSON.parse(jsonMatch[0]);
+            return {
+                is_safe: result.is_safe,
+                score: result.score,
+                reason: result.reason
+            };
+        }
+
+        // --- Dynamic Card Creation ---
+        let uploadCardCounter = 100;
+        function createReviewCard(imageUrl, aiResult, photographer) {
+            const cardId = `upload_${++uploadCardCounter}`;
+            const { is_safe, score, reason } = aiResult;
+
+            let tagIcon, tagClass, tagText;
+            if (is_safe && score >= 80) {
+                tagIcon = 'sparkles';
+                tagClass = 'text-success';
+                tagText = `AI 机审：建议通过 (${score}分)`;
+            } else if (is_safe && score >= 50) {
+                tagIcon = 'alert-triangle';
+                tagClass = 'text-orange-400';
+                tagText = `AI 机审：需人工复核 (${score}分)`;
+            } else {
+                tagIcon = 'x-circle';
+                tagClass = 'text-danger';
+                tagText = `AI 机审：建议打回 (${score}分)`;
+            }
+
+            const scoreColor = score >= 80 ? 'text-success' : score >= 50 ? 'text-orange-400' : 'text-danger';
+
+            const card = document.createElement('div');
+            card.className = 'review-card group relative rounded-xl border border-border bg-surface overflow-visible hover:border-gray-500 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7)] hover:-translate-y-1 transition-all duration-300 z-10 hover:z-20';
+            card.setAttribute('data-id', cardId);
+
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            card.innerHTML = `
+                <div class="aspect-[4/3] relative overflow-hidden bg-black rounded-t-xl">
+                    <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1.5 rounded-lg border border-white/10 flex items-center gap-1.5 z-10 shadow-lg">
+                        <i data-lucide="${tagIcon}" class="w-3.5 h-3.5 ${tagClass}"></i>
+                        <span class="text-[11px] font-medium text-gray-200">${tagText}</span>
+                    </div>
+                    <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 z-10 shadow-lg">
+                        <span class="text-[12px] font-bold ${scoreColor}">${score}</span>
+                    </div>
+                    <img src="${imageUrl}" alt="Review Image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80"></div>
+                    <div class="absolute bottom-12 left-3 right-3 text-xs text-gray-300 bg-black/70 backdrop-blur-md rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
+                        ${reason}
+                    </div>
+                    <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                        <div>
+                            <p class="text-sm font-medium text-white">@${photographer}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">${timeStr}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded-md bg-black/50 backdrop-blur text-[10px] uppercase tracking-wider text-gray-300 border border-white/10">AI</span>
+                    </div>
+                </div>
+                <div class="p-3 flex gap-2">
+                    <button onclick="handleAction(this, 'pass')" class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-success hover:border-success hover:text-white text-sm font-medium transition-all">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        Approve
+                    </button>
+                    <div class="relative flex-1">
+                        <button onclick="toggleRejectMenu(event, this)" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-surfaceHover border border-border hover:bg-danger hover:border-danger hover:text-white text-sm font-medium transition-all text-secondary">
+                            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                            Reject
+                        </button>
+                        <div class="reject-dropdown hidden absolute bottom-full left-0 mb-2 w-full bg-surface border border-border rounded-lg shadow-xl shadow-black/80 p-1.5 flex-col z-30 dropdown-enter origin-bottom">
+                            <button onclick="confirmReject(this, '版权争议')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">版权争议</button>
+                            <button onclick="confirmReject(this, '画面模糊')" class="text-left px-3 py-2 text-xs font-medium text-secondary hover:text-primary hover:bg-surfaceHover rounded-md transition-colors">画面模糊</button>
+                            <button onclick="confirmReject(this, '政治敏感')" class="text-left px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 rounded-md transition-colors">政治敏感</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const reviewList = document.getElementById('review-list');
+            reviewList.insertBefore(card, reviewList.firstChild);
+            lucide.createIcons({ root: card });
+            
+            currentQueue++;
+            updateQueueCount();
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('flex');
+
+            return cardId;
+        }
+
+        // --- Quota Exhausted Modal ---
+        let pendingQuotaImage = null;
+
+        window.closeQuotaModal = function() {
+            const modal = document.getElementById('quota-modal');
+            const content = document.getElementById('quota-modal-content');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                pendingQuotaImage = null;
+            }, 200);
+        };
+
+        function openQuotaModal(exhaustedProvider) {
+            const otherProvider = exhaustedProvider === 'Gemini' ? 'DeepSeek' : 'Gemini';
+            const otherName = otherProvider === 'Gemini' ? 'Gemini' : 'DeepSeek';
+
+            document.getElementById('quota-modal-title').textContent = `${exhaustedProvider} 额度已达上限`;
+            document.getElementById('quota-modal-body').textContent = `${exhaustedProvider} 免费额度已耗尽。是否一键切换至 ${otherName} 继续审核？`;
+            document.getElementById('quota-switch-btn').textContent = `切换到 ${otherName}`;
+
+            const modal = document.getElementById('quota-modal');
+            const content = document.getElementById('quota-modal-content');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        window.switchProviderFromQuota = function() {
+            const exhaustedProvider = document.getElementById('quota-modal-title').textContent.includes('Gemini') ? 'Gemini' : 'DeepSeek';
+            const targetProvider = exhaustedProvider === 'Gemini' ? 'deepseek' : 'gemini';
+            const targetName = exhaustedProvider === 'Gemini' ? 'DeepSeek' : 'Gemini';
+
+            currentProvider = targetProvider;
+            document.getElementById('api-provider-select').value = targetProvider;
+            document.getElementById('api-key-link').href = apiKeyLinks[targetProvider];
+            document.getElementById('api-key-input').value = '';
+            currentApiKey = '';
+
+            document.getElementById('api-connected-banner').classList.add('hidden');
+            document.getElementById('api-key-banner').classList.remove('hidden');
+            document.getElementById('real-file-input').removeAttribute('data-ready');
+
+            closeQuotaModal();
+
+            showToast(`已切换至 ${targetName}，请重新输入 API Key`, 'success');
+
+            setTimeout(() => {
+                document.getElementById('api-key-input').focus();
+                const bannerText = document.getElementById('api-banner-text');
+                bannerText.textContent = `接入真实 AI 审核能力：请输入 ${targetName} API Key`;
+            }, 300);
+        };
+
+        // --- Real Upload + AI ---
         const uploadZone = document.getElementById('upload-zone');
         const stateInitial = document.getElementById('upload-initial');
         const stateLoading = document.getElementById('upload-loading');
         const stateSuccess = document.getElementById('upload-success');
+        const fileInput = document.getElementById('real-file-input');
         let isUploading = false;
 
-        function triggerUpload() {
-            if (isUploading) return;
+        async function processRealUpload(file) {
             isUploading = true;
-
-            // Show loading
             stateInitial.classList.add('hidden');
             stateInitial.classList.remove('flex');
             stateLoading.classList.remove('hidden');
             stateLoading.classList.add('flex');
 
-            // Simulate upload time (2s)
-            setTimeout(() => {
+            try {
+                const { base64, mimeType } = await resizeImageForAPI(file);
+                
+                const objectUrl = URL.createObjectURL(file);
+                
+                const aiResult = await callAIForReview(base64, mimeType);
+                
                 stateLoading.classList.add('hidden');
                 stateLoading.classList.remove('flex');
                 stateSuccess.classList.remove('hidden');
                 stateSuccess.classList.add('flex');
-                
-                showToast('上传成功，已进入待审队列', 'success');
 
-                // Reset after 3s
+                const cardId = createReviewCard(objectUrl, aiResult, 'photographer');
+                
+                showToast('AI 审核完成，已进入待审队列', 'success');
+                
+                addLog(`AI 已对 #${cardId} 完成机审 (${aiResult.is_safe ? '安全' : '风险'}, ${aiResult.score}分)`);
+
                 setTimeout(() => {
                     stateSuccess.classList.add('hidden');
                     stateSuccess.classList.remove('flex');
@@ -853,15 +1295,66 @@
                     isUploading = false;
                 }, 3000);
 
+            } catch (err) {
+                stateLoading.classList.add('hidden');
+                stateLoading.classList.remove('flex');
+                stateInitial.classList.remove('hidden');
+                stateInitial.classList.add('flex');
+                isUploading = false;
+                
+                if (err instanceof QuotaExhaustedError) {
+                    openQuotaModal(err.provider);
+                    showToast(`${err.provider} 额度已耗尽，请切换模型`, 'error');
+                } else {
+                    showToast(`AI 审核失败: ${err.message}`, 'error');
+                }
+                console.error('AI API Error:', err);
+            }
+        }
+
+        function triggerUpload() {
+            if (isUploading) return;
+            if (currentApiKey) {
+                fileInput.click();
+            } else {
+                simulateUpload();
+            }
+        }
+
+        function simulateUpload() {
+            isUploading = true;
+            stateInitial.classList.add('hidden');
+            stateInitial.classList.remove('flex');
+            stateLoading.classList.remove('hidden');
+            stateLoading.classList.add('flex');
+
+            setTimeout(() => {
+                stateLoading.classList.add('hidden');
+                stateLoading.classList.remove('flex');
+                stateSuccess.classList.remove('hidden');
+                stateSuccess.classList.add('flex');
+                showToast('上传成功，已进入待审队列', 'success');
+                setTimeout(() => {
+                    stateSuccess.classList.add('hidden');
+                    stateSuccess.classList.remove('flex');
+                    stateInitial.classList.remove('hidden');
+                    stateInitial.classList.add('flex');
+                    isUploading = false;
+                }, 3000);
             }, 2000);
         }
 
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) processRealUpload(file);
+            fileInput.value = '';
+        });
+
         uploadZone.addEventListener('click', triggerUpload);
         
-        // Drag events for styling
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            if(!isUploading) uploadZone.classList.add('dragover');
+            if (!isUploading) uploadZone.classList.add('dragover');
         });
         uploadZone.addEventListener('dragleave', () => {
             uploadZone.classList.remove('dragover');
@@ -869,7 +1362,13 @@
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadZone.classList.remove('dragover');
-            triggerUpload();
+            if (isUploading) return;
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/') && currentApiKey) {
+                processRealUpload(file);
+            } else {
+                triggerUpload();
+            }
         });
 
     </script>
