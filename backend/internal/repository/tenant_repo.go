@@ -38,7 +38,7 @@ func (r *TenantRepository) Create(ctx context.Context, t *model.Tenant) error {
 		t.Status,
 		time.Now(),
 		t.CreatedBy,
-	)
+	).Scan(&t.ID, &t.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("create tenant: %w", err)
 	}

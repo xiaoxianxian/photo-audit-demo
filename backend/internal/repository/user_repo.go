@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"audit-platform/internal/model"
@@ -48,9 +48,10 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 		u.Languages,
 		u.Status,
 		time.Now(),
-	)
+	).Scan(&u.ID, &u.CreatedAt)
 	if err != nil {
-		if strings.Contains(fmt.Sprintf("%v", err), "23505") {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return fmt.Errorf("%w: %s", ErrDuplicateUser, u.Username)
 		}
 		return fmt.Errorf("create user: %w", err)

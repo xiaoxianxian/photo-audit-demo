@@ -35,7 +35,7 @@ func (r *TeamRepository) Create(ctx context.Context, t *model.AuditTeam) error {
 		t.Name,
 		t.LeaderID,
 		t.Status,
-	)
+	).Scan(&t.ID)
 	if err != nil {
 		return fmt.Errorf("create team: %w", err)
 	}
