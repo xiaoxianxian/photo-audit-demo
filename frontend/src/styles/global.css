@@ -1,0 +1,194 @@
+/* ========================================
+   Photo Audit Platform — Global Styles
+   Based on .design_library/photo-audit/colors_and_type.css
+   ======================================== */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+/* ── CSS Reset ──────────────────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────── */
+body {
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography Classes ─────────────────────────────────────────────── */
+.pa-display { font-family: 'Inter', sans-serif; font-size: 3.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+.pa-h1      { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 2.5rem; font-weight: 700; line-height: 1.2; }
+.pa-h2      { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 2rem; font-weight: 600; line-height: 1.25; }
+.pa-h3      { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
+.pa-h4      { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 1.25rem; font-weight: 600; line-height: 1.4; }
+.pa-body    { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 1rem; font-weight: 400; line-height: 1.6; }
+.pa-caption { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 0.75rem; font-weight: 400; line-height: 1.5; }
+.pa-eyebrow { font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 0.6875rem; font-weight: 600; line-height: 1.4; letter-spacing: 0.08em; text-transform: uppercase; }
+.pa-mono    { font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.875rem; font-weight: 400; line-height: 1.6; }
+
+/* ── CSS Variables (from design library) ────────────────────────────── */
+:root {
+  /* Brand */
+  --pa-accent: #3b82f6;
+  --pa-accent-hover: #2563eb;
+  --pa-success: #10b981;
+  --pa-warning: #f59e0b;
+  --pa-error: #ef4444;
+  --pa-info: #0ea5e9;
+  --pa-danger: #f5222d;
+
+  /* Surface (light) */
+  --pa-bg: #f8fafc;
+  --pa-surface: #f1f5f9;
+  --pa-surface-dim: #f8fafc;
+  --pa-surface-container: #e2e8f0;
+  --pa-surface-container-high: #cbd5e1;
+
+  /* Text */
+  --pa-fg: #0f172a;
+  --pa-fg-secondary: #64748b;
+  --pa-fg-muted: #94a3b8;
+
+  /* Border */
+  --pa-border: #e2e8f0;
+  --pa-border-hover: #cbd5e1;
+
+  /* Spacing */
+  --pa-space-xs: 4px;
+  --pa-space-sm: 8px;
+  --pa-space-md: 12px;
+  --pa-space-base: 16px;
+  --pa-space-lg: 24px;
+  --pa-space-xl: 32px;
+
+  /* Radius */
+  --pa-radius-xs: 2px;
+  --pa-radius-sm: 4px;
+  --pa-radius-md: 8px;
+  --pa-radius-lg: 12px;
+  --pa-radius-xl: 16px;
+
+  /* Shadows */
+  --pa-shadow-card: 0 1px 2px rgba(15,23,42,.06), 0 1px 1px rgba(15,23,42,.04);
+  --pa-shadow-card-hover: 0 4px 8px -2px rgba(15,23,42,.10);
+  --pa-shadow-float: 0 8px 24px -8px rgba(15,23,42,.18);
+  --pa-shadow-modal: 0 16px 40px -12px rgba(15,23,42,.24);
+
+  /* Motion */
+  --pa-transition-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --pa-transition-normal: 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --pa-transition-slow: 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* Layout */
+  --pa-sidebar-width: 240px;
+  --pa-nav-height: 56px;
+}
+
+/* ── Dark Theme ─────────────────────────────────────────────────────── */
+.dark, .ant-config-provider-dark {
+  --pa-accent: #58a6ff;
+  --pa-accent-hover: #79b8ff;
+  --pa-success: #3fb950;
+  --pa-warning: #d29922;
+  --pa-error: #f85149;
+  --pa-info: #58a6ff;
+  --pa-danger: #f85149;
+
+  --pa-bg: #0d1117;
+  --pa-surface: #161b22;
+  --pa-surface-dim: #0d1117;
+  --pa-surface-container: #1c2128;
+  --pa-surface-container-high: #21262d;
+
+  --pa-fg: #e6edf3;
+  --pa-fg-secondary: #8b949e;
+  --pa-fg-muted: #8b949e;
+
+  --pa-border: #30363d;
+  --pa-border-hover: #484f58;
+
+  --pa-shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 1px 1px rgba(0,0,0,.2);
+  --pa-shadow-card-hover: 0 4px 8px -2px rgba(0,0,0,.4);
+  --pa-shadow-float: 0 8px 24px -8px rgba(0,0,0,.5);
+  --pa-shadow-modal: 0 16px 40px -12px rgba(0,0,0,.6);
+}
+
+/* ── Focus Ring ─────────────────────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--pa-accent);
+  outline-offset: 2px;
+  border-radius: var(--pa-radius-sm);
+}
+
+/* ── Interactive Hover States ───────────────────────────────────────── */
+.ant-btn {
+  transition: all var(--pa-transition-normal);
+}
+.ant-btn:hover {
+  opacity: 0.9;
+}
+.ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.ant-card {
+  transition: box-shadow var(--pa-transition-normal), border-color var(--pa-transition-normal);
+}
+.ant-card:hover {
+  box-shadow: var(--pa-shadow-card-hover);
+}
+.ant-menu-item:hover,
+.ant-menu-submenu-title:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.ant-select-selector:hover {
+  border-color: var(--pa-accent-hover) !important;
+}
+.ant-input:hover,
+.ant-input-password:hover {
+  border-color: var(--pa-accent-hover) !important;
+}
+.ant-input:focus,
+.ant-input-password:focus,
+.ant-select-focused .ant-select-selector {
+  border-color: var(--pa-accent) !important;
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2) !important;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ── Skeleton Loading Animation ─────────────────────────────────────── */
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Spinner Animation ──────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

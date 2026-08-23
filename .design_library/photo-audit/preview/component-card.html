@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卡片预览 — Photo Audit</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+/* @component-css-start */
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; padding: 12px; background: var(--color-background); font-family: var(--font-body); color: var(--color-foreground); }
+  .row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; }
+  .label { font-size: 11px; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.08em; min-width: 92px; flex-shrink: 0; padding-top: 12px; }
+  hr.divider { border: none; border-top: 1px solid var(--color-border); margin: 8px 0; }
+  .card { background: var(--color-surface-container-low); border-radius: 8px; box-shadow: var(--shadow-1); transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out, opacity 0.25s ease-in-out; overflow: hidden; width: 260px; flex-shrink: 0; cursor: pointer; }
+  .card:hover { opacity: 1; transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .card.focused { border: 2px solid var(--color-primary); }
+  .card.conflict { border: 2px solid #fa8c16; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; }
+  .card-tags { display: flex; gap: 4px; align-items: center; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; line-height: 1.6; }
+  .tag-default { background: var(--color-surface-container-high); color: var(--color-on-surface-variant); }
+  .tag-warning { background: #fef3c7; color: #92400e; }
+  .tag-error { background: #fee2e2; color: #7f1d1d; }
+  .tag-success { background: #d1fae5; color: #064e3b; }
+  .tag-blue { background: #dbeafe; color: #172554; }
+  .checkbox-placeholder { width: 16px; height: 16px; border: 1px solid var(--color-outline); border-radius: 4px; flex-shrink: 0; }
+  .card-media { width: 100%; height: 120px; object-fit: cover; display: block; background: #1a1a1a; }
+  .card-media-placeholder { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; background: #1a1a1a; color: #666; font-size: 12px; }
+  .card-meta { padding: 8px 12px; }
+  .card-meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .risk-badge { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-size: 11px; font-weight: 600; color: #fff; }
+  .risk-low { background: #059669; }
+  .risk-medium { background: #f59e0b; }
+  .risk-high { background: #fa8c16; }
+  .risk-critical { background: #dc2626; }
+  .risk-text { font-size: 11px; color: var(--color-muted); white-space: nowrap; }
+  .card-actions { display: flex; gap: 4px; padding: 0 12px 12px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: none; cursor: pointer; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; min-width: 48px; height: 32px; padding: 0 12px; transition: background 0.15s, border-color 0.15s; font-family: var(--font-body); }
+  .btn-primary { background: var(--color-primary); color: var(--color-on-primary); }
+  .btn-primary:hover { background: var(--color-primary-hover); }
+  .btn-danger { background: #ff4d4f; color: #fff; }
+  .btn-danger:hover { background: #d9363e; }
+  .dashboard-stat-card { background: var(--color-surface-container-low); border-radius: 8px; box-shadow: var(--shadow-1); padding: 16px; width: 160px; flex-shrink: 0; }
+  .dashboard-stat-card:hover { box-shadow: var(--shadow-2); }
+  .stat-title { font-size: 11px; color: var(--color-muted); margin-bottom: 4px; }
+  .stat-value { font-size: 24px; font-weight: 700; font-family: var(--font-display); line-height: 1.2; }
+  .stat-suffix { font-size: 12px; color: var(--color-muted); margin-left: 2px; }
+  .stat-change { font-size: 11px; margin-top: 4px; }
+  .stat-up { color: #059669; }
+  .stat-down { color: #dc2626; }
+  .conflict-banner { background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 6px 8px; margin: 8px 12px; font-size: 11px; color: #92400e; display: flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+
+<div class="row">
+  <span class="label">审核卡片</span>
+  <div class="card" tabindex="0">
+    <div class="card-header">
+      <div class="card-tags">
+        <span class="tag tag-blue">封面</span>
+        <span class="tag tag-default">pending_human</span>
+      </div>
+    </div>
+    <div class="card-media-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <div class="card-meta">
+      <div class="card-meta-row">
+        <span class="risk-badge risk-low" title="低风险">15</span>
+        <span class="tag tag-success">机审通过</span>
+      </div>
+      <div class="card-meta-row">
+        <span class="risk-text">置信度: 92.3%</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary" style="flex:1">通过</button>
+      <button class="btn btn-danger" style="flex:1">打回</button>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <span class="label">审核卡片</span>
+  <div class="card" tabindex="0">
+    <div class="card-header">
+      <div class="card-tags">
+        <span class="tag tag-blue">视频帧</span>
+        <span class="tag tag-default">pending_human</span>
+      </div>
+    </div>
+    <div class="card-media-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    </div>
+    <div class="card-meta">
+      <div class="card-meta-row">
+        <span class="risk-badge risk-high" title="高风险">72</span>
+        <span class="tag tag-warning">待 AI 审核</span>
+      </div>
+      <div style="margin-bottom:8px">
+        <span class="tag tag-error" style="margin-right:4px">色情低俗</span>
+        <span class="tag tag-error">暴力恐怖</span>
+      </div>
+      <div class="card-meta-row">
+        <span class="risk-text">置信度: 85.1%</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary" style="flex:1">通过</button>
+      <button class="btn btn-danger" style="flex:1">打回</button>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <span class="label">审核卡片</span>
+  <div class="card focused" tabindex="0">
+    <div class="card-header">
+      <div class="card-tags">
+        <span class="tag tag-blue">标题</span>
+        <span class="tag tag-default">pending_human</span>
+      </div>
+    </div>
+    <div style="padding:8px 12px;color:#888;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">秋日风光 — 自然风光摄影集</div>
+    <div class="card-meta">
+      <div class="card-meta-row">
+        <span class="risk-badge risk-medium" title="中等风险">45</span>
+        <span class="tag tag-blue">ai_passed</span>
+      </div>
+      <div class="card-meta-row">
+        <span class="risk-text">置信度: 78.6%</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary" style="flex:1">通过</button>
+      <button class="btn btn-danger" style="flex:1">打回</button>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<div class="row">
+  <span class="label">分歧卡片</span>
+  <div class="card conflict" tabindex="0">
+    <div class="card-header">
+      <div class="card-tags">
+        <span class="tag tag-blue">封面</span>
+        <span class="tag tag-warning">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          分歧
+        </span>
+      </div>
+    </div>
+    <div class="conflict-banner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      AI 结论存在分歧，请重点审核
+    </div>
+    <div class="card-media-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <div class="card-meta">
+      <div class="card-meta-row">
+        <span class="risk-badge risk-critical" title="极高风险">85</span>
+        <span class="tag tag-warning">待 AI 审核</span>
+      </div>
+      <div style="margin-bottom:8px">
+        <span class="tag tag-error" style="margin-right:4px">版权争议</span>
+        <span class="tag tag-error">政治敏感</span>
+      </div>
+      <div class="card-meta-row">
+        <span class="risk-text">置信度: 91.0%</span>
+      </div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary" style="flex:1">通过</button>
+      <button class="btn btn-danger" style="flex:1">打回</button>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<div class="row">
+  <span class="label">看板卡片</span>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">今日已审</div>
+    <div><span class="stat-value">128</span><span class="stat-suffix">张</span></div>
+    <div class="stat-change stat-up">↑ 12% 较昨日</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">通过率</div>
+    <div><span class="stat-value">87.3</span><span class="stat-suffix">%</span></div>
+    <div class="stat-change stat-up">↑ 2.1% 较昨日</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">驳回率</div>
+    <div><span class="stat-value">12.7</span><span class="stat-suffix">%</span></div>
+    <div class="stat-change stat-down">↓ 1.5% 较昨日</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">平均风险分</div>
+    <div><span class="stat-value">34.2</span></div>
+    <div class="stat-change stat-up">↑ 3.1 较昨日</div>
+  </div>
+</div>
+
+<div class="row">
+  <span class="label">看板卡片</span>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">待审元素</div>
+    <div><span class="stat-value" style="color:var(--color-warning)">56</span><span class="stat-suffix">个</span></div>
+    <div class="stat-change" style="color:var(--color-warning)">需要关注</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">分歧数</div>
+    <div><span class="stat-value" style="color:var(--color-error)">8</span><span class="stat-suffix">个</span></div>
+    <div class="stat-change stat-down">↑ 2 较昨日</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">申诉数</div>
+    <div><span class="stat-value">3</span></div>
+    <div class="stat-change" style="color:var(--color-muted)">本周累计</div>
+  </div>
+  <div class="dashboard-stat-card">
+    <div class="stat-title">准确率</div>
+    <div><span class="stat-value">96.8</span><span class="stat-suffix">%</span></div>
+    <div class="stat-change stat-up">↑ 0.3% 较昨日</div>
+  </div>
+</div>
+
+</body>
+</html>

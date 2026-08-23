@@ -1,0 +1,28 @@
+# Environment secrets
+deployment/.env.development
+backend/.env
+
+# Build outputs
+frontend/dist/
+backend/bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Generated secrets
+.env.local
+.env.production

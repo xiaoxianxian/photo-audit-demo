@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>表格 - Photo Audit 组件预览</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 12px; background: var(--color-background); font-family: var(--font-body); color: var(--color-on-surface); }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .label { font-size: 11px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.08em; min-width: 92px; flex-shrink: 0; }
+  .divider { border: none; border-top: 1px solid var(--color-border); margin: 12px 0; }
+  .stage { width: 100%; }
+
+  /* @component-css-start */
+  .pa-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .pa-table thead { background: var(--color-surface-container-low); }
+  .pa-table th { padding: 10px 16px; text-align: left; font-weight: 500; color: var(--color-on-surface); border-bottom: 2px solid var(--color-border); white-space: nowrap; }
+  .pa-table th.sortable { cursor: pointer; }
+  .pa-table th .sort-icon { display: inline-block; margin-left: 4px; opacity: 0.4; font-size: 12px; }
+  .pa-table td { padding: 10px 16px; border-bottom: 1px solid var(--color-border); color: var(--color-on-surface); }
+  .pa-table tbody tr:hover { background: var(--interactive-hover); }
+  .pa-table tbody tr:last-child td { border-bottom: none; }
+  .pa-table .compact td, .pa-table .compact th { padding: 6px 12px; font-size: 13px; }
+  .pa-table .action-link { color: var(--color-link); cursor: pointer; text-decoration: none; white-space: nowrap; font-size: 13px; }
+  .pa-table .action-link:hover { opacity: 0.8; }
+  .pa-table .action-link.danger { color: var(--color-error); }
+  .pa-table .status-badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .pa-table .status-badge.passed { background: var(--audit-success-50); color: var(--audit-success-700); }
+  .pa-table .status-badge.pending { background: var(--audit-warning-50); color: var(--audit-warning-700); }
+  .pa-table .status-badge.rejected { background: var(--audit-error-50); color: var(--audit-error-700); }
+  .pa-table .status-badge.conflict { background: var(--audit-warning-50); color: var(--audit-warning-700); border: 1px solid var(--audit-warning-300); }
+  .pa-table .risk-score { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pa-table .risk-score.low { color: var(--audit-success-600); }
+  .pa-table .risk-score.medium { color: var(--audit-warning-600); }
+  .pa-table .risk-score.high { color: var(--audit-error-600); }
+  .pa-table .pagination { display: flex; align-items: center; gap: 4px; padding: 12px 0; justify-content: flex-end; }
+  .pa-table .pagination-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-container-low); color: var(--color-on-surface); font-size: 13px; cursor: pointer; }
+  .pa-table .pagination-btn.active { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+  .pa-table .pagination-btn:hover:not(.active) { background: var(--interactive-hover); }
+  .pa-table .pagination-info { font-size: 13px; color: var(--color-muted); margin-right: 12px; }
+  .pa-table .toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 8px; }
+  .pa-table .batch-btn { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-container-low); color: var(--color-on-surface); font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .pa-table .batch-btn:hover { background: var(--interactive-hover); }
+  .pa-table .batch-btn.primary { background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+  .pa-table .batch-btn.primary:hover { background: var(--color-primary-hover); }
+  .pa-table .batch-btn.danger { color: var(--color-error); border-color: var(--color-error); }
+  .pa-table .checkbox-cell { width: 36px; text-align: center; }
+  .pa-table .checkbox-placeholder { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: 1.5px solid var(--color-outline); border-radius: var(--radius-xs); cursor: pointer; flex-shrink: 0; }
+  .pa-table .checkbox-placeholder.checked { background: var(--color-primary); border-color: var(--color-primary); }
+  .pa-table .meta { font-size: 12px; color: var(--color-muted); }
+  /* @component-css-end */
+</style>
+</head>
+<body>
+
+<div class="row"><span class="label">数据表格</span></div>
+<div class="row"><div class="stage"><div class="pa-table" data-evidence-sample="appeal-list">
+  <thead><tr>
+    <th class="checkbox-cell"><div class="checkbox-placeholder"></div></th>
+    <th>申诉编号</th>
+    <th>内容类型</th>
+    <th>审核结果</th>
+    <th>风险评分</th>
+    <th>提交时间</th>
+    <th>操作</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder checked"></div></td>
+      <td><span class="pa-mono">#AP-20260628-001</span></td>
+      <td>供稿图片</td>
+      <td><span class="status-badge rejected">已驳回</span></td>
+      <td><span class="risk-score high">78</span></td>
+      <td><span class="meta">2026-06-28 14:32</span></td>
+      <td><a class="action-link">查看</a></td>
+    </tr>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder"></div></td>
+      <td><span class="pa-mono">#AP-20260628-002</span></td>
+      <td>短视频</td>
+      <td><span class="status-badge pending">审核中</span></td>
+      <td><span class="risk-score medium">45</span></td>
+      <td><span class="meta">2026-06-28 13:15</span></td>
+      <td><a class="action-link">查看</a></td>
+    </tr>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder"></div></td>
+      <td><span class="pa-mono">#AP-20260628-003</span></td>
+      <td>供稿图片</td>
+      <td><span class="status-badge passed">已通过</span></td>
+      <td><span class="risk-score low">12</span></td>
+      <td><span class="meta">2026-06-28 11:08</span></td>
+      <td><a class="action-link">查看</a></td>
+    </tr>
+  </tbody>
+</div>
+<div class="pagination">
+  <span class="pagination-info">共 48 条</span>
+  <div class="pagination-btn">&lt;</div>
+  <div class="pagination-btn active">1</div>
+  <div class="pagination-btn">2</div>
+  <div class="pagination-btn">3</div>
+  <div class="pagination-btn">&gt;</div>
+</div>
+</div></div></div>
+
+<hr class="divider">
+
+<div class="row"><span class="label">紧凑表格</span></div>
+<div class="row"><div class="stage"><div class="pa-table compact" data-evidence-sample="quality-sample-list">
+  <thead><tr>
+    <th>样本</th>
+    <th>审核员</th>
+    <th>AI 判定</th>
+    <th>抽检结果</th>
+    <th>耗时</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td><span class="pa-mono">#IMG-8842</span></td>
+      <td>张明</td>
+      <td><span class="status-badge rejected">违规</span></td>
+      <td><span class="status-badge passed">一致</span></td>
+      <td><span class="meta">32s</span></td>
+    </tr>
+    <tr>
+      <td><span class="pa-mono">#IMG-8843</span></td>
+      <td>李华</td>
+      <td><span class="status-badge passed">通过</span></td>
+      <td><span class="status-badge conflict">分歧</span></td>
+      <td><span class="meta">18s</span></td>
+    </tr>
+    <tr>
+      <td><span class="pa-mono">#IMG-8844</span></td>
+      <td>王芳</td>
+      <td><span class="status-badge rejected">疑似违规</span></td>
+      <td><span class="status-badge passed">一致</span></td>
+      <td><span class="meta">45s</span></td>
+    </tr>
+  </tbody>
+</div>
+<div class="pagination">
+  <span class="pagination-info">共 120 条</span>
+  <div class="pagination-btn">&lt;</div>
+  <div class="pagination-btn active">1</div>
+  <div class="pagination-btn">2</div>
+  <div class="pagination-btn">3</div>
+  <div class="pagination-btn">4</div>
+  <div class="pagination-btn">&gt;</div>
+</div>
+</div></div></div>
+
+<hr class="divider">
+
+<div class="row"><span class="label">可排序表格</span></div>
+<div class="row"><div class="stage">
+<div class="toolbar">
+  <button class="batch-btn primary">批量通过</button>
+  <button class="batch-btn danger">批量驳回</button>
+  <button class="batch-btn">刷新</button>
+</div>
+<div class="pa-table" data-evidence-sample="audit-log-table">
+  <thead><tr>
+    <th class="checkbox-cell"><div class="checkbox-placeholder"></div></th>
+    <th class="sortable">操作类型 <span class="sort-icon">&#9650;&#9660;</span></th>
+    <th class="sortable">审核类型 <span class="sort-icon">&#9650;&#9660;</span></th>
+    <th>操作人</th>
+    <th>风险分</th>
+    <th class="sortable">时间 <span class="sort-icon">&#9650;&#9660;</span></th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder checked"></div></td>
+      <td>审核通过</td>
+      <td>供稿图片</td>
+      <td>张明</td>
+      <td><span class="risk-score low">8</span></td>
+      <td><span class="meta">2026-06-28 15:02</span></td>
+    </tr>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder"></div></td>
+      <td>审核驳回</td>
+      <td>短视频</td>
+      <td>李华</td>
+      <td><span class="risk-score high">82</span></td>
+      <td><span class="meta">2026-06-28 14:58</span></td>
+    </tr>
+    <tr>
+      <td class="checkbox-cell"><div class="checkbox-placeholder"></div></td>
+      <td>申诉改判</td>
+      <td>供稿图片</td>
+      <td>王芳</td>
+      <td><span class="risk-score medium">42</span></td>
+      <td><span class="meta">2026-06-28 14:45</span></td>
+    </tr>
+  </tbody>
+</div>
+</div></div></div>
+
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Build artifacts
+dist/
+build/
+*.exe
+
+# Dependencies
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+!.env.example
+
+# Docker
+.docker/
+
+# Testing
+coverage/

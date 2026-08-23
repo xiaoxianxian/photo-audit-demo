@@ -1,0 +1,23 @@
+{
+  "slug": "table",
+  "schemaVersion": 2,
+  "name": "表格",
+  "category": "data-display",
+  "sourceKind": "from-scratch",
+  "confidence": "medium",
+  "semanticTypeCandidates": [
+    {"type": "Table", "confidence": 0.9, "evidence": "DataTable in Appeal/QualityAudit/AuditLog pages"}
+  ],
+  "variantDimensions": ["density", "state"],
+  "representativeVariants": [
+    {"name": "Data Table", "traits": {"density": "normal"}, "whySelected": "Core list display"},
+    {"name": "Compact Table", "traits": {"density": "compact"}, "whySelected": "Sample lists in quality audit"},
+    {"name": "Sortable Table", "traits": {"state": "sortable"}, "whySelected": "Column sorting for filtering"}
+  ],
+  "anatomy": "header + rows + pagination",
+  "structurePatterns": "bordered rows, status badge columns, action buttons",
+  "usageHints": {"priorityHint": "Tables need status badges, risk score columns, batch action toolbar"},
+  "doNotInvent": ["inline cell editing", "tree/expandable rows"],
+  "unknowns": ["row selection state"],
+  "keyInsightSeed": "Data tables with status badges and action buttons"
+}

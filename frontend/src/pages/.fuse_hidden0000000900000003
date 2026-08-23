@@ -1,0 +1,191 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { Table, Tag, message, Select, Typography, Tooltip } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { getAuditLogs, type AuditLogItem } from '@/services/content-api';
+import AppLayout, { Content } from '@/components/Layout';
+import {
+  COLORS,
+  SPACING,
+  FONT,
+  RADIUS,
+  TABLE,
+} from '@/utils/constants';
+
+const { Title, Text } = Typography;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const ACTION_LABELS: Record<string, { color: string; label: string }> = {
+  approve: { color: 'success', label: '通过' },
+  reject: { color: 'error', label: '打回' },
+  reverse: { color: 'processing', label: '改判' },
+  maintain: { color: 'default', label: '维持' },
+};
+
+const REVIEW_TYPE_LABELS: Record<string, string> = {
+  ai_primary: 'AI 主审',
+  ai_judge: 'AI 裁判',
+  human: '人工审核',
+  quality: '质检',
+  appeal: '申诉',
+};
+
+function formatDate(iso?: string) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleString('zh-CN');
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog Page
+// ---------------------------------------------------------------------------
+
+const AuditLogPage: React.FC = () => {
+  const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, _setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [filterAction, setFilterAction] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: Record<string, string> = { page: String(page), page_size: String(pageSize) };
+      if (filterAction) params.action = filterAction;
+      if (filterType) params.review_type = filterType;
+      const data = await getAuditLogs(page, pageSize, params);
+      setLogs(data.items ?? []);
+    } catch {
+      message.error('获取审核日志失败');
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, filterAction, filterType]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const columns: ColumnsType<AuditLogItem> = [
+    {
+      title: '操作',
+      dataIndex: 'action',
+      key: 'action',
+      width: 100,
+      render: (action: string) => {
+        const cfg = ACTION_LABELS[action];
+        return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{action}</Tag>;
+      },
+    },
+    {
+      title: '类型',
+      dataIndex: 'review_type',
+      key: 'review_type',
+      width: 120,
+      render: (type: string) => <Tag>{REVIEW_TYPE_LABELS[type] || type}</Tag>,
+    },
+    {
+      title: '审核员',
+      dataIndex: 'reviewer_id',
+      key: 'reviewer_id',
+      width: TABLE.idColumnWidth,
+      render: (id: string | null) => (
+        id ? (
+          <Tooltip title={id}>
+            <Text copyable={{ text: id }} style={{ fontSize: FONT.tiny }}>{id.slice(0, 8)}...</Text>
+          </Tooltip>
+        ) : '-'
+      ),
+    },
+    {
+      title: 'AI 风险分',
+      key: 'ai_scores',
+      width: 140,
+      render: (_: unknown, record: AuditLogItem) => (
+        <span>
+          <Text style={{ color: COLORS.textTertiary }}>{record.ai_score_before ?? '-'}</Text>
+          {' → '}
+          <Text style={{ color: COLORS.textPrimary }}>{record.ai_score_after ?? '-'}</Text>
+        </span>
+      ),
+    },
+    {
+      title: '原因',
+      dataIndex: 'reason',
+      key: 'reason',
+      ellipsis: true,
+      render: (reason: string | null) => reason || '-',
+    },
+    {
+      title: '备注',
+      dataIndex: 'comment',
+      key: 'comment',
+      ellipsis: true,
+      render: (comment: string | null) => comment || '-',
+    },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 180,
+      render: formatDate,
+    },
+  ];
+
+  return (
+    <AppLayout>
+      <Content style={{ padding: SPACING.lg, background: COLORS.bgBase }}>
+        <div style={{ marginBottom: SPACING.lg }}>
+          <Title level={4} style={{ color: COLORS.textPrimary, margin: 0 }}>
+            审核操作日志
+          </Title>
+        </div>
+
+        {/* Filters */}
+        <div style={{ marginBottom: SPACING.base, display: 'flex', gap: SPACING.sm, flexWrap: 'wrap' }}>
+          <Select
+            placeholder="操作类型"
+            allowClear
+            style={{ minWidth: 120 }}
+            value={filterAction || undefined}
+            onChange={(val) => setFilterAction(val || '')}
+            options={[
+              { label: '通过', value: 'approve' },
+              { label: '打回', value: 'reject' },
+              { label: '改判', value: 'reverse' },
+              { label: '维持', value: 'maintain' },
+            ]}
+          />
+          <Select
+            placeholder="审核类型"
+            allowClear
+            style={{ minWidth: 120 }}
+            value={filterType || undefined}
+            onChange={(val) => setFilterType(val || '')}
+            options={[
+              { label: 'AI 主审', value: 'ai_primary' },
+              { label: 'AI 裁判', value: 'ai_judge' },
+              { label: '人工审核', value: 'human' },
+              { label: '质检', value: 'quality' },
+              { label: '申诉', value: 'appeal' },
+            ]}
+          />
+        </div>
+
+        <Table<AuditLogItem>
+          columns={columns}
+          dataSource={logs}
+          rowKey="id"
+          loading={loading}
+          scroll={{ x: TABLE.scrollX }}
+          pagination={TABLE.pagination}
+        />
+      </Content>
+    </AppLayout>
+  );
+};
+
+export default AuditLogPage;

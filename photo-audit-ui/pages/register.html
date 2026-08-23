@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 供稿审核平台</title>
+    <style id="theme-vars">
+:root {
+  /* Brand Primary */
+  --color-primary: #2563EB;
+  --color-primary-light-50: #EFF6FF;
+  --color-primary-light-100: #DBEAFE;
+  --color-primary-light-200: #BFDBFE;
+  --color-primary-light-300: #93C5FD;
+  --color-primary-light-400: #60A5FA;
+  --color-primary-light-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
+  --color-primary-800: #1E40AF;
+  --color-primary-900: #1E3A8A;
+
+  /* Neutrals - Surface & Background */
+  --color-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-container: #F1F5F9;
+  --color-surface-container-low: #F8FAFC;
+  --color-surface-container-high: #E2E8F0;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+  --color-divider: #F1F5F9;
+
+  /* Typography */
+  --color-foreground: #0F172A;
+  --color-foreground-secondary: #475569;
+  --color-foreground-muted: #94A3B8;
+  --color-foreground-disabled: #CBD5E1;
+
+  /* Status Colors */
+  --state-success: #059669;
+  --state-success-light: #ECFDF5;
+  --state-success-bg: #D1FAE5;
+  --state-warning: #D97706;
+  --state-warning-light: #FFFBEB;
+  --state-warning-bg: #FEF3C7;
+  --state-error: #DC2626;
+  --state-error-light: #FEF2F2;
+  --state-error-bg: #FEE2E2;
+  --state-info: #0284C7;
+  --state-info-light: #F0F9FF;
+  --state-info-bg: #E0F2FE;
+
+  /* Risk Levels */
+  --risk-low: #059669;
+  --risk-medium: #D97706;
+  --risk-high: #DC2626;
+  --risk-critical: #991B1B;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  --shadow-md: 0 2px 8px 0 rgb(15 23 42 / 0.06);
+  --shadow-lg: 0 4px 16px 0 rgb(15 23 42 / 0.08);
+  --shadow-xl: 0 8px 24px 0 rgb(15 23 42 / 0.10);
+
+  /* Typography Scale */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-family-mono: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --text-3xl: 28px;
+  --text-4xl: 34px;
+
+  --leading-tight: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Sidebar */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 56px;
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-foreground: var(--color-foreground);
+    --color-primary: var(--color-primary);
+    --color-border: var(--color-border);
+  }
+  @layer base {
+    body { background: var(--color-surface); color: var(--color-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

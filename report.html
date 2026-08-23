@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Audit Workspace — 面试报告</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-card-alt: #273549;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-green: #22c55e;
+    --accent-green-dim: rgba(34,197,94,0.15);
+    --accent-blue: #3b82f6;
+    --accent-blue-dim: rgba(59,130,246,0.15);
+    --accent-amber: #f59e0b;
+    --accent-amber-dim: rgba(245,158,11,0.15);
+    --accent-red: #ef4444;
+    --accent-red-dim: rgba(239,68,68,0.15);
+    --accent-purple: #a78bfa;
+    --accent-purple-dim: rgba(167,139,250,0.15);
+    --accent-cyan: #22d3ee;
+    --accent-cyan-dim: rgba(34,211,238,0.15);
+    --border: #334155;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ===== Header ===== */
+  .report-header {
+    text-align: center;
+    padding: 60px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .report-header .badge {
+    display: inline-block;
+    background: var(--accent-blue-dim);
+    color: var(--accent-blue);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    letter-spacing: 0.5px;
+  }
+  .report-header h1 {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .report-header .subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    max-width: 620px;
+    margin: 0 auto 28px;
+  }
+  .meta-row {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .meta-item strong {
+    color: var(--text-secondary);
+  }
+
+  /* ===== Section ===== */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent-blue);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    letter-spacing: -0.5px;
+  }
+  .section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 28px 0 12px;
+    color: var(--text-primary);
+  }
+  .section p, .section li {
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+  .section ul, .section ol {
+    padding-left: 0;
+    list-style: none;
+  }
+  .section li {
+    padding: 6px 0;
+    padding-left: 20px;
+    position: relative;
+  }
+  .section li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-blue);
+  }
+
+  /* ===== Card Grid ===== */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 24px;
+  }
+  .info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: border-color 0.2s;
+  }
+  .info-card:hover {
+    border-color: var(--accent-blue);
+  }
+  .info-card .card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  .info-card h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .info-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  /* ===== Metric Row ===== */
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 24px;
+  }
+  .metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .metric-card .value {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 4px;
+  }
+  .metric-card .label {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ===== Table ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th {
+    background: var(--bg-card-alt);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: left;
+    padding: 14px 18px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  tr:hover td {
+    background: rgba(59,130,246,0.04);
+  }
+
+  /* ===== Tags ===== */
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .tag-green { background: var(--accent-green-dim); color: var(--accent-green); }
+  .tag-blue { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .tag-amber { background: var(--accent-amber-dim); color: var(--accent-amber); }
+  .tag-red { background: var(--accent-red-dim); color: var(--accent-red); }
+  .tag-purple { background: var(--accent-purple-dim); color: var(--accent-purple); }
+  .tag-cyan { background: var(--accent-cyan-dim); color: var(--accent-cyan); }
+
+  /* ===== Architecture Diagram ===== */
+  .arch-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px;
+    margin-top: 24px;
+  }
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .arch-node {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 130px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .arch-node .arch-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .arch-arrow {
+    color: var(--text-muted);
+    font-size: 20px;
+    user-select: none;
+  }
+  .arch-layer {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+  .arch-layer-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .arch-layer-tokens {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .arch-token {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+
+  /* ===== Challenge / Solution ===== */
+  .cs-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .cs-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .cs-card .cs-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cs-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  /* ===== Highlight Bar ===== */
+  .highlight-bar {
+    background: linear-gradient(135deg, var(--accent-blue-dim), var(--accent-purple-dim));
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-top: 24px;
+  }
+  .highlight-bar h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--accent-blue);
+  }
+  .highlight-bar p {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  /* ===== Footer ===== */
+  .report-footer {
+    text-align: center;
+    padding: 48px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 56px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ===== Print ===== */
+  @media print {
+    body { background: #fff; color: #1e293b; }
+    .info-card, .metric-card, .cs-card, .arch-box, .highlight-bar {
+      border-color: #d1d5db;
+      background: #f9fafb;
+    }
+    .section p, .section li, td, .report-header .subtitle, .metric-card .label {
+      color: #4b5563;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .metric-row { grid-template-columns: 1fr; }
+    .cs-row { grid-template-columns: 1fr; }
+    .card-grid { grid-template-columns: 1fr; }
+    .report-header h1 { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ===== Header ===== -->
+  <header class="report-header">
+    <div class="badge">PROJECT REVIEW</div>
+    <h1>Photo Audit Workspace</h1>
+    <p class="subtitle">摄影平台供稿审核后台 — "AI 机审 + 人工复核" MVP 项目面试报告</p>
+    <div class="meta-row">
+      <span class="meta-item"><strong>技术栈：</strong>HTML5 · Tailwind CSS · Vanilla JS</span>
+      <span class="meta-item"><strong>类型：</strong>前端 MVP</span>
+      <span class="meta-item"><strong>部署：</strong>零依赖 · 静态站点</span>
+    </div>
+  </header>
+
+  <!-- ===== 1. 项目概述 ===== -->
+  <section class="section">
+    <div class="section-label">01 · Overview</div>
+    <h2>项目概述</h2>
+    <p>本项目是为现代 UGC 摄影平台设计的<strong>供稿审核后台最小可行性产品（MVP）</strong>。针对平台每天海量图片审核中的<strong style="color:var(--text-primary)">效率低下、风险漏判、标准不一</strong>三大痛点，引入 "AI 机审拦截 90% 低质稿件 + 人工专注 10% 争议内容" 的双层审核工作流。</p>
+
+    <div class="metric-row">
+      <div class="metric-card">
+        <div class="value" style="color:var(--accent-green)">99.2%</div>
+        <div class="label">机审召回率目标</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--accent-blue)">85%+</div>
+        <div class="label">机审准确率目标</div>
+      </div>
+      <div class="metric-card">
+        <div class="value" style="color:var(--accent-amber)">&lt;1.2s</div>
+        <div class="label">平均出审时效</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 2. 解决的业务痛点 ===== -->
+  <section class="section">
+    <div class="section-label">02 · Pain Points</div>
+    <h2>业务痛点与解决方案</h2>
+    <div class="cs-row">
+      <div class="cs-card">
+        <div class="cs-title"><span style="color:var(--accent-red)">●</span> 痛点 1：效率低下</div>
+        <p>海量图片的初筛耗费大量人工，出审时效以分钟计，严重影响创作者体验与平台周转。</p>
+      </div>
+      <div class="cs-card">
+        <div class="cs-title"><span style="color:var(--accent-green)">●</span> 方案 1：AI 批量初筛</div>
+        <p>AI 在 1.2s 内完成内容分析，自动拦截 90% 低质稿件，人工只需复核争议内容。</p>
+      </div>
+      <div class="cs-card">
+        <div class="cs-title"><span style="color:var(--accent-amber)">●</span> 痛点 2：风险漏判</div>
+        <p>人工疲劳导致版权争议、政治敏感内容漏放，平台合规压力大。</p>
+      </div>
+      <div class="cs-card">
+        <div class="cs-title"><span style="color:var(--accent-green)">●</span> 方案 2：安全兜底策略</div>
+        <p>高风险内容采取"宁可错杀不可放过"策略，召回率 99.2%，确保风险内容全部进入人工复核队列。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. 核心功能 ===== -->
+  <section class="section">
+    <div class="section-label">03 · Features</div>
+    <h2>核心功能模块</h2>
+    <div class="card-grid">
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-green-dim)">🤖</div>
+        <h4>AI 智能辅助审核</h4>
+        <p>支持 Gemini 2.0 Flash（视觉审核）与 DeepSeek Chat（元数据盲审）双模型，上传后自动给出评分与建议标签。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-blue-dim)">🖥️</div>
+        <h4>沉浸式审核工作台</h4>
+        <p>暗黑模式设计，卡片网格布局，hover 操作、滑出动画，为影像工作者优化的专业体验。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-amber-dim)">🔄</div>
+        <h4>摄影师申诉闭环</h4>
+        <p>打回 Toast 附带 Appeal 按钮 → 申诉浮层 → 提交理由 → 联动审核日志，形成完整闭环。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-purple-dim)">📊</div>
+        <h4>业务实时看板</h4>
+        <p>侧边栏展示今日已审、平均出审时效、机审召回率等核心指标，数据持久化至 localStorage。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-cyan-dim)">📋</div>
+        <h4>审核日志系统</h4>
+        <p>实时记录每一次 Approve / Reject / 申诉操作，带时间戳，刷新不丢失。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-red-dim)">🔑</div>
+        <h4>灵活 AI 接入方案</h4>
+        <p>页面横幅输入 API Key，额度耗尽自动检测并引导模型切换，支持模拟/真实双模式运行。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. 技术架构 ===== -->
+  <section class="section">
+    <div class="section-label">04 · Architecture</div>
+    <h2>技术架构设计</h2>
+    <p>纯前端零后端架构，通过统一分发器模式路由到不同 AI 模型，数据持久化完全依赖浏览器 localStorage。</p>
+
+    <div class="arch-box">
+      <div class="arch-layer">
+        <div class="arch-layer-title">前端应用层</div>
+        <div class="arch-layer-tokens">
+          <span class="arch-token" style="background:var(--accent-blue-dim);color:var(--accent-blue)">上传区组件</span>
+          <span class="arch-token" style="background:var(--accent-green-dim);color:var(--accent-green)">审核工作台</span>
+          <span class="arch-token" style="background:var(--accent-amber-dim);color:var(--accent-amber)">Toast 系统</span>
+          <span class="arch-token" style="background:var(--accent-purple-dim);color:var(--accent-purple)">审核日志</span>
+          <span class="arch-token" style="background:var(--accent-cyan-dim);color:var(--accent-cyan)">申诉 Modal</span>
+        </div>
+      </div>
+      <div class="arch-arrow" style="text-align:center">↓</div>
+      <div class="arch-layer">
+        <div class="arch-layer-title">AI 分发层</div>
+        <div class="arch-layer-tokens">
+          <span class="arch-token" style="background:var(--accent-amber-dim);color:var(--accent-amber);font-weight:700;padding:6px 20px">callAIForReview() 统一分发器</span>
+        </div>
+      </div>
+      <div class="arch-arrow" style="text-align:center">↓</div>
+      <div class="arch-layer">
+        <div class="arch-layer-title">AI 服务层</div>
+        <div class="arch-layer-tokens">
+          <span class="arch-token" style="background:var(--accent-green-dim);color:var(--accent-green)">Gemini 2.0 Flash<br><span style="font-size:11px;opacity:0.8">视觉审核 · Base64 图片输入</span></span>
+          <span class="arch-arrow">+</span>
+          <span class="arch-token" style="background:var(--accent-red-dim);color:var(--accent-red)">DeepSeek Chat<br><span style="font-size:11px;opacity:0.8">元数据盲审 · 格式/体积推理</span></span>
+        </div>
+      </div>
+      <div class="arch-arrow" style="text-align:center">↕</div>
+      <div class="arch-layer">
+        <div class="arch-layer-title">持久化层</div>
+        <div class="arch-layer-tokens">
+          <span class="arch-token" style="background:var(--accent-blue-dim);color:var(--accent-blue)">localStorage<br><span style="font-size:11px;opacity:0.8">已审卡片 · 今日统计 · 审核日志 · API Key</span></span>
+        </div>
+      </div>
+    </div>
+
+    <h3>技术选型</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>选型</th><th>理由</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>前端框架</td><td>原生 HTML5 + Vanilla JS</td><td>零依赖，MVP 快速验证，浏览器直接打开即可运行</td></tr>
+          <tr><td>样式方案</td><td>Tailwind CSS (CDN)</td><td>原子化 CSS 高效构建暗黑模式 UI，无需构建工具</td></tr>
+          <tr><td>图标库</td><td>Lucide Icons</td><td>轻量 SVG 图标，与暗色主题风格统一</td></tr>
+          <tr><td>AI 服务 A</td><td>Google Gemini 2.0 Flash</td><td>原生视觉能力，支持 Base64 图片输入，真正内容审核</td></tr>
+          <tr><td>AI 服务 B</td><td>DeepSeek Chat</td><td>纯文本模型通过元数据盲审，成本低，适合格式/体积研判</td></tr>
+          <tr><td>数据持久化</td><td>localStorage</td><td>零后端，MVP 阶段满足状态保存需求</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 5. AI 审核策略 ===== -->
+  <section class="section">
+    <div class="section-label">05 · AI Strategy</div>
+    <h2>AI 审核策略与双模型设计</h2>
+    <p>系统设计了<strong style="color:var(--text-primary)">差异化审核策略</strong>：Gemini 负责真正的内容理解（安全/质量/版权），DeepSeek 通过文件元数据进行低成本盲审，两者通过统一分发器 <code style="background:var(--bg-card-alt);padding:2px 8px;border-radius:4px;font-size:13px">callAIForReview()</code> 自动路由。</p>
+
+    <h3>DeepSeek 元数据盲审规则矩阵</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>文件格式</th><th>文件大小</th><th>AI 判定</th><th>评分区间</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>PNG</td><td>&lt; 50KB</td><td><span class="tag tag-red">疑似截图/盗图</span></td><td>30–45</td></tr>
+          <tr><td>PNG</td><td>50–200KB</td><td><span class="tag tag-amber">边缘可疑，人工复核</span></td><td>50–65</td></tr>
+          <tr><td>RAW / TIFF</td><td>&gt; 5MB</td><td><span class="tag tag-green">专业级原始文件</span></td><td>85–95</td></tr>
+          <tr><td>JPEG</td><td>&gt; 2MB</td><td><span class="tag tag-green">优质投稿</span></td><td>75–90</td></tr>
+          <tr><td>JPEG</td><td>&lt; 200KB</td><td><span class="tag tag-red">严重压缩，画质损失</span></td><td>45–65</td></tr>
+          <tr><td>WEBP / GIF</td><td>任意</td><td><span class="tag tag-amber">疑似第三方转载</span></td><td>55–75</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="highlight-bar">
+      <h4>💡 设计亮点</h4>
+      <p>额度耗尽自动检测（HTTP 402/429 + 关键词匹配），弹出 Amber 提示引导无缝切换模型；API Key 全程在浏览器内存中，不写死代码；图片自动压缩（最大 1024px + JPEG 0.8 质量）再送入 API，控制调用成本。</p>
+    </div>
+  </section>
+
+  <!-- ===== 6. 技术亮点 ===== -->
+  <section class="section">
+    <div class="section-label">06 · Highlights</div>
+    <h2>技术亮点与工程思考</h2>
+    <div class="card-grid">
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-blue-dim)">⚡</div>
+        <h4>零后端架构验证</h4>
+        <p>通过 localStorage 实现了完整的数据持久化方案，包括已审卡片防复现、审核日志、今日统计、API Key 管理，MVP 阶段完全自洽。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-green-dim)">🎨</div>
+        <h4>暗黑模式 UX 设计</h4>
+        <p>专为影像工作者设计的沉浸式 Dark Mode UI，暗角叠加、悬浮操作、滑出动画，体现对目标用户工作场景的深度理解。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-amber-dim)">🔀</div>
+        <h4>统一分发器模式</h4>
+        <p>callAIForReview() 根据 provider 自动路由，新增模型只需在分发器中加一条分支，遵循开闭原则，具备良好的可扩展性。</p>
+      </div>
+      <div class="info-card">
+        <div class="card-icon" style="background:var(--accent-purple-dim)">🔒</div>
+        <h4>安全与合规设计</h4>
+        <p>API Key 安全存储于 localStorage，高风险内容"宁可错杀不可放过"策略确保平台合规，审核日志全量追溯。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 7. 项目亮点总结 ===== -->
+  <section class="section">
+    <div class="section-label">07 · Summary</div>
+    <h2>项目价值总结</h2>
+    <ul>
+      <li><strong style="color:var(--text-primary)">业务价值：</strong>将 AI 能力落地到内容审核这一高频场景，直接降低人工成本，提升审核效率与平台合规性。</li>
+      <li><strong style="color:var(--text-primary)">技术价值：</strong>纯前端实现完整 AI 集成方案，涵盖多模型分发、额度管理、图片预处理、数据持久化，是一个麻雀虽小但五脏俱全的全栈式前端项目。</li>
+      <li><strong style="color:var(--text-primary)">产品思维：</strong>从痛点分析 → 指标设计 → 功能实现 → 申诉闭环，展现了完整的产品视角和闭环思维。</li>
+      <li><strong style="color:var(--text-primary)">工程素养：</strong>代码组织清晰（单文件但模块分明），动画与交互细节到位（Toast、滑出、Modal），体现了对前端工程与用户体验的双重关注。</li>
+    </ul>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer class="report-footer">
+    <p>Photo Audit Workspace — Project Interview Report &nbsp;|&nbsp; AI-First Content Moderation MVP</p>
+  </footer>
+
+</div>
+</body>
+</html>

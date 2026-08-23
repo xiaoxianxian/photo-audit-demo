@@ -1,0 +1,28 @@
+[Unit]
+Description=Photo Audit Platform Backend Server
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/photo-audit
+Environment=PATH=/usr/local/go/bin:/usr/bin:/bin
+Environment=DATABASE_URL=postgresql://postgres:postgres@localhost:5432/photo_audit
+Environment=JWT_SECRET=change-me-in-production
+Environment=FALLBACK_ENABLED=true
+
+ExecStart=/opt/photo-audit/audit-server
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=photo-audit
+
+[Install]
+WantedBy=multi-user.target
