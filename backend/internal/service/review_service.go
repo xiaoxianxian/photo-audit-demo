@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -273,6 +274,10 @@ func (s *ReviewService) ResolveAppeal(ctx context.Context, appealID string, inpu
 		updateReq.Comment = stringPtr(input.Comment)
 	}
 	if err := s.appealRepo.UpdateWithTx(ctx, tx, appealUUID, updateReq); err != nil {
+		tx.Rollback(ctx)
+		if errors.Is(err, repository.ErrAppealAlreadyResolved) {
+			return nil, fmt.Errorf("resolve appeal: already resolved (concurrent update detected)")
+		}
 		return nil, fmt.Errorf("resolve appeal update: %w", err)
 	}
 

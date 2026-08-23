@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Config holds all runtime configuration values.
@@ -45,6 +46,9 @@ type Config struct {
 	JWTSecret         string
 	JWTMinLength      int `mapstructure:"JWT_MIN_LENGTH" default:"32"`
 	JWTExpiry         time.Duration
+	AllowedOrigins    string // Comma-separated CORS origin allowlist; * allows all (dev only)
+	MaxUploadBytes    int64  // Max upload request body size in bytes
+	BcryptCost        int    // bcrypt password hashing cost
 }
 
 // defaults maps optional config keys to their fallback values.
@@ -61,6 +65,9 @@ var defaults = map[string]string{
 	"FALLBACK_ENABLED":  "true",
 	"JWT_SECRET":        "",
 	"JWT_EXPIRY":        "24h",
+	"ALLOWED_ORIGINS":   "*",
+	"MAX_UPLOAD_BYTES":  "104857600", // 100MB
+	"BCRYPT_COST":       "10",
 }
 
 // critical lists the keys that must have a non-empty value for Load() to
@@ -99,6 +106,21 @@ func Load() (*Config, error) {
 		FallbackEnabled: envBool(cfg, "FALLBACK_ENABLED", true),
 		JWTSecret:       envOr(cfg, "JWT_SECRET"),
 	}
+
+	// Parse JWT expiry.
+	c.JWTExpiry = parseDuration(envOr(cfg, "JWT_EXPIRY"))
+
+	c.AllowedOrigins = envOr(cfg, "ALLOWED_ORIGINS")
+	if v, err := strconv.ParseInt(envOr(cfg, "MAX_UPLOAD_BYTES"), 10, 64); err == nil && v > 0 {
+		c.MaxUploadBytes = v
+	} else {
+		c.MaxUploadBytes = 100 * 1024 * 1024
+	}
+	cost, err := strconv.Atoi(envOr(cfg, "BCRYPT_COST"))
+	if err != nil || cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
+		cost = 10
+	}
+	c.BcryptCost = cost
 
 	// Generate a random JWT secret if none is configured.
 	if c.JWTSecret == "" {

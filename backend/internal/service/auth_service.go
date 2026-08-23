@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -21,15 +22,21 @@ var (
 
 // AuthService handles authentication and authorization logic.
 type AuthService struct {
-	userRepo  *repository.UserRepository
-	jwtSecret string
+	userRepo   *repository.UserRepository
+	jwtSecret  string
+	bcryptCost int
 }
 
-// NewAuthService creates a new AuthService.
-func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *AuthService {
+// NewAuthService creates a new AuthService. bcryptCost <=0 falls back to DefaultCost.
+func NewAuthService(userRepo *repository.UserRepository, jwtSecret string, bcryptCost ...int) *AuthService {
+	cost := bcrypt.DefaultCost
+	if len(bcryptCost) > 0 && bcryptCost[0] >= bcrypt.MinCost && bcryptCost[0] <= bcrypt.MaxCost {
+		cost = bcryptCost[0]
+	}
 	return &AuthService{
-		userRepo:  userRepo,
-		jwtSecret: jwtSecret,
+		userRepo:   userRepo,
+		jwtSecret:  jwtSecret,
+		bcryptCost: cost,
 	}
 }
 
@@ -134,7 +141,7 @@ func (s *AuthService) Register(ctx context.Context, req model.CreateUserRequest)
 		}
 	}
 
-	if err := user.SetPasswordHash(req.Password); err != nil {
+	if err := user.SetPasswordHashWithCost(req.Password, s.bcryptCost); err != nil {
 		return nil, fmt.Errorf("register: hash password: %w", err)
 	}
 

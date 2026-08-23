@@ -23,14 +23,21 @@ type User struct {
 	CreatedAt        time.Time  `json:"created_at"`
 }
 
-// SetPasswordHash generates a bcrypt hash from the given plaintext password.
-func (u *User) SetPasswordHash(password string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+// SetPasswordHash generates a bcrypt hash from the given plaintext password
+// using the provided cost (use bcrypt.DefaultCost if unsure).
+func (u *User) SetPasswordHashWithCost(password string, cost int) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), cost)
 	if err != nil {
 		return err
 	}
 	u.PasswordHashBcrypt = string(hash)
 	return nil
+}
+
+// SetPasswordHash generates a bcrypt hash from the given plaintext password
+// using bcrypt.DefaultCost.
+func (u *User) SetPasswordHash(password string) error {
+	return u.SetPasswordHashWithCost(password, bcrypt.DefaultCost)
 }
 
 // CheckPassword compares the given plaintext password against the stored hash.

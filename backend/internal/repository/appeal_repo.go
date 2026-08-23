@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,10 @@ import (
 type txConn interface {
 	pgx.Tx
 }
+
+// ErrAppealAlreadyResolved is returned when an UPDATE targets an appeal that
+// has already been resolved (optimistic lock guard against concurrent resolves).
+var ErrAppealAlreadyResolved = errors.New("appeal already resolved")
 
 // AppealRepository persists and retrieves Appeal records.
 type AppealRepository struct {
@@ -168,15 +173,21 @@ func (r *AppealRepository) UpdateWithTx(ctx context.Context, tx txConn, id uuid.
 
 	args = append(args, id)
 
+	// Optimistic locking: only update appeals that are not yet resolved.
+	// This prevents two concurrent reviewers from double-resolving the same
+	// appeal (the second UPDATE matches 0 rows and is reported as an error).
 	query := fmt.Sprintf(
-		"UPDATE appeals SET %s WHERE id = $%d",
+		"UPDATE appeals SET %s WHERE id = $%d AND status NOT IN ('resolved_approved', 'resolved_maintained')",
 		strings.Join(setParts, ", "),
 		idx,
 	)
 
-	_, err := tx.Exec(ctx, query, args...)
+	tag, err := tx.Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("update appeal (tx): %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrAppealAlreadyResolved
 	}
 	return nil
 }
