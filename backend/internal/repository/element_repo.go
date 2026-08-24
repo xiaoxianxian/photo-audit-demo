@@ -41,6 +41,8 @@ func (r *ElementRepository) Create(ctx context.Context, e *model.ContentElement)
 	var types []string
 	if e.AIRiskTypes != nil {
 		types = e.AIRiskTypes
+	} else {
+		types = []string{} // avoid NULL violating NOT NULL constraint (bypasses column DEFAULT)
 	}
 
 	err := r.db.QueryRow(ctx, q,
@@ -69,9 +71,9 @@ func (r *ElementRepository) CreateBulk(ctx context.Context, elements []*model.Co
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())`
 
 	for _, e := range elements {
-		var types []string
-		if e.AIRiskTypes != nil {
-			types = e.AIRiskTypes
+		types := e.AIRiskTypes
+		if types == nil {
+			types = []string{} // avoid NULL violating NOT NULL constraint (bypasses column DEFAULT)
 		}
 		_, err := tx.Exec(ctx, q,
 			e.ID, e.ContentID, e.ElementKind, e.ElementContent, e.AIRiskScore,

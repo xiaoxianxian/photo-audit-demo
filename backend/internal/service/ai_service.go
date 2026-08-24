@@ -125,6 +125,12 @@ func (s *AIService) ReviewElement(ctx context.Context, element model.ContentElem
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		// Transport-level failure (DNS/timeout/conn refused) — also fall back
+		// so elements don't get stuck in ai_processing when the API is unreachable.
+		if s.fallback != nil {
+			aiLog.Warn("AI transport error (%v), triggering local fallback", err)
+			return s.fallback.ReviewElement(element), nil
+		}
 		return nil, fmt.Errorf("send AI review request: %w", err)
 	}
 	defer resp.Body.Close()

@@ -223,13 +223,20 @@ func (h *ReviewHandler) HumanReview(c *fiber.Ctx) error {
 		})
 	}
 
+	tenantID, _ := c.Locals("tenant_id").(string)
+	if tenantID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"code":    400,
+			"message": "tenant context missing (user has no tenant binding)",
+		})
+	}
 	record, err := h.reviewSvc.HumanReview(c.Context(), service.HumanReviewInput{
 		ElementID:  elemID,
 		Action:     req.Action,
 		Reason:     req.Reason,
 		Comment:    req.Comment,
 		ReviewerID: reviewerID,
-	}, c.Locals("tenant_id").(string))
+	}, tenantID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -315,13 +322,20 @@ func (h *ReviewHandler) BatchReview(c *fiber.Ctx) error {
 		})
 	}
 
+	tenantID2, _ := c.Locals("tenant_id").(string)
+	if tenantID2 == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"code":    400,
+			"message": "tenant context missing (user has no tenant binding)",
+		})
+	}
 	records, err := h.reviewSvc.BatchReview(c.Context(), service.BatchReviewInput{
 		ElementIDs: req.ElementIDs,
 		Action:     req.Action,
 		Reason:     req.Reason,
 		Comment:    req.Comment,
 		ReviewerID: reviewerID.String(),
-	}, c.Locals("tenant_id").(string))
+	}, tenantID2)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"code":    500,
