@@ -31,8 +31,15 @@ func NewAIConfigService(configRepo *repository.AIConfigRepository) *AIConfigServ
 }
 
 // Get retrieves the AI config for the given tenant.
+// API keys are masked before being returned to prevent exposure (P1).
 func (s *AIConfigService) Get(ctx context.Context, tenantID uuid.UUID) (*model.AIConfig, error) {
-	return s.configRepo.GetByTenant(ctx, tenantID)
+	cfg, err := s.configRepo.GetByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	cfg.AgnesAPIKey = maskAPIKey(cfg.AgnesAPIKey)
+	cfg.DeepSeekAPIKey = maskAPIKey(cfg.DeepSeekAPIKey)
+	return cfg, nil
 }
 
 // Save creates or updates the AI config for a tenant.
@@ -111,8 +118,28 @@ func (s *AIConfigService) Save(ctx context.Context, tenantID uuid.UUID, req mode
 	}
 
 	// Update existing.
+	// P1: a client that round-trips the masked value (****xxxx) would overwrite
+	// the real key — strip masked values so only genuine new keys are saved.
+	if req.AgnesAPIKey != nil && isMaskedKey(*req.AgnesAPIKey) {
+		req.AgnesAPIKey = nil
+	}
+	if req.DeepSeekAPIKey != nil && isMaskedKey(*req.DeepSeekAPIKey) {
+		req.DeepSeekAPIKey = nil
+	}
 	if err := s.configRepo.UpdatePartial(ctx, tenantID, &req); err != nil {
 		return nil, fmt.Errorf("update ai config: %w", err)
 	}
-	return s.configRepo.GetByTenant(ctx, tenantID)
+	cfg, err := s.configRepo.GetByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("get ai config: %w", err)
+	}
+	cfg.AgnesAPIKey = maskAPIKey(cfg.AgnesAPIKey)
+	cfg.DeepSeekAPIKey = maskAPIKey(cfg.DeepSeekAPIKey)
+	return cfg, nil
+}
+
+// isMaskedKey reports whether the value looks like a masked key returned by
+// Get (e.g. "****abcd") rather than a genuine API key.
+func isMaskedKey(v string) bool {
+	return strings.HasPrefix(v, "****") || v == "***"
 }

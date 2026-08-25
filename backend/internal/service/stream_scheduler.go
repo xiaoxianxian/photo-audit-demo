@@ -87,7 +87,7 @@ func (s *StreamScheduler) checkStreams(ctx context.Context) {
 		}
 
 		// Check stream health via ffprobe (or simulate if ffprobe unavailable).
-		healthy, err := s.isStreamHealthy(job.streamID)
+		healthy, err := s.isStreamHealthy(job)
 		if err != nil || !healthy {
 			// Stream unhealthy — mark offline.
 			s.markStreamOffline(ctx, job)
@@ -101,15 +101,17 @@ func (s *StreamScheduler) checkStreams(ctx context.Context) {
 
 // isStreamHealthy probes the RTMP stream via ffprobe.
 // Returns true if the stream is alive, false if ffmpeg reports no video.
-func (s *StreamScheduler) isStreamHealthy(streamID uuid.UUID) (bool, error) {
-	// Retrieve stream info from DB.
-	streams, err := s.liveSvc.streamRepo.GetActiveStreams(nil, "")
+func (s *StreamScheduler) isStreamHealthy(job *streamJob) (bool, error) {
+	// P1 fix: query by the job's tenant so we actually find the stream row.
+	// The old code passed (nil, "") which queried tenant_id='' and matched
+	// nothing — every live stream was then marked offline on every tick.
+	streams, err := s.liveSvc.streamRepo.GetActiveStreams(context.Background(), job.tenantID)
 	if err != nil {
 		return false, err
 	}
 
 	for _, st := range streams {
-		if st.ID == streamID && st.StreamURL != "" {
+		if st.ID == job.streamID && st.StreamURL != "" {
 			cmd := exec.Command("ffprobe",
 				"-v", "error",
 				"-select_streams", "v:0",

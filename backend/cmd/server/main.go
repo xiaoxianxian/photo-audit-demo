@@ -34,11 +34,13 @@ var (
 )
 
 // getDB returns a singleton database connection pool.
+var dbInitErr error // preserved across sync.Once so callers see the real failure
+
 func getDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	var err error
 	dbOnce.Do(func() {
 		cfg, err := pgxpool.ParseConfig(dsn)
 		if err != nil {
+			dbInitErr = fmt.Errorf("parse database config: %w", err)
 			return
 		}
 		cfg.MaxConns = 100
@@ -47,18 +49,20 @@ func getDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		cfg.MaxConnLifetime = 30 * time.Minute
 		cfg.HealthCheckPeriod = 30 * time.Second
 
-		dbPool, err = pgxpool.NewWithConfig(ctx, cfg)
+		pool, err := pgxpool.NewWithConfig(ctx, cfg)
 		if err != nil {
+			dbInitErr = fmt.Errorf("connect database: %w", err)
 			return
 		}
 
-		if err = dbPool.Ping(ctx); err != nil {
-			dbPool.Close()
-			dbPool = nil
+		if err := pool.Ping(ctx); err != nil {
+			pool.Close()
+			dbInitErr = fmt.Errorf("ping database: %w", err)
 			return
 		}
+		dbPool = pool
 	})
-	return dbPool, err
+	return dbPool, dbInitErr
 }
 
 func main() {
