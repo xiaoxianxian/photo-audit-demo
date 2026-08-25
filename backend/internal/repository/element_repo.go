@@ -171,7 +171,7 @@ func (r *ElementRepository) FindByStatus(ctx context.Context, aiStatus, humanSta
 		idx, idx+1,
 	)
 
-	rows, err := r.db.Query(ctx, listQ, append(args, page, pageSize*(page-1))...)
+	rows, err := r.db.Query(ctx, listQ, append(args, pageSize, (page-1)*pageSize)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("find elements by status: %w", err)
 	}
