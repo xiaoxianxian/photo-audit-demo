@@ -1,7 +1,8 @@
 package middleware
 
 import (
-	"audit-platform/internal/config"
+	"database/sql"
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -28,15 +29,13 @@ func RequirePlatformAdmin() fiber.Handler {
 // It reads the X-Tenant-ID header, verifies that the requesting user belongs
 // to that tenant, and stores the resolved tenant ID in c.Locals("tenant_id").
 // Platform admins bypass tenant checks entirely.
-func Tenant(db *pgxpool.Pool, cfg *config.Config) fiber.Handler {
-	auth := Auth(cfg) // reuse the auth extractor
-
+//
+// NOTE: this middleware must run AFTER the Auth middleware on the same route.
+// It reads role/user_id from c.Locals instead of re-running the auth extractor —
+// calling auth(c) directly here would advance fiber's internal route index twice
+// (auth ends with c.Next()) and break request routing (manifests as spurious 404s).
+func Tenant(db *pgxpool.Pool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// First run auth to populate c.Locals("role") and c.Locals("user_id").
-		if err := auth(c); err != nil {
-			return err
-		}
-
 		// Platform admins can access all tenants.
 		role, ok := c.Locals("role").(string)
 		if !ok {
@@ -46,8 +45,13 @@ func Tenant(db *pgxpool.Pool, cfg *config.Config) fiber.Handler {
 			})
 		}
 		if role == "platform_admin" {
-			// Strip the header so downstream handlers know it was overridden.
+			// Mark that downstream handlers may ignore the tenant header.
 			c.Locals("tenant_bypass", true)
+			if hdr := c.Get("X-Tenant-ID"); hdr != "" {
+				if tid, err := uuid.Parse(hdr); err == nil {
+					c.Locals("tenant_id", tid.String())
+				}
+			}
 			return c.Next()
 		}
 
@@ -67,20 +71,38 @@ func Tenant(db *pgxpool.Pool, cfg *config.Config) fiber.Handler {
 		}
 
 		// Verify the user belongs to the requested tenant.
-		var exists bool
-		query := `
-			SELECT EXISTS(
-				SELECT 1 FROM users
-				WHERE id = $1 AND tenant_id = $2
-			)`
-		row := db.QueryRow(c.UserContext(), query, c.Locals("user_id"), tenantID)
-		if err := row.Scan(&exists); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		userIDLocal, ok := c.Locals("user_id").(string)
+		if !ok || userIDLocal == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": map[string]interface{}{
-					"message": "failed to verify tenant membership",
-					"code":    fiber.StatusInternalServerError,
+					"message": "authentication required",
+					"code":    fiber.StatusUnauthorized,
 				},
 			})
+		}
+		userID, err := uuid.Parse(userIDLocal)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": map[string]interface{}{
+					"message": "invalid user identity",
+					"code":    fiber.StatusUnauthorized,
+				},
+			})
+		}
+
+		var exists bool
+		query := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2)`
+		if err := db.QueryRow(c.UserContext(), query, userID, tenantID).Scan(&exists); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				exists = false
+			} else {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": map[string]interface{}{
+						"message": "failed to verify tenant membership",
+						"code":    fiber.StatusInternalServerError,
+					},
+				})
+			}
 		}
 
 		if !exists {

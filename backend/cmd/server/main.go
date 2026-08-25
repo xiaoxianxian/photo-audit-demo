@@ -145,7 +145,7 @@ func main() {
 
 	// Build middleware instances
 	authMW := middleware.Auth(cfg)
-	tenantMW := middleware.Tenant(db, cfg)
+	tenantMW := middleware.Tenant(db)
 
 	// Build handlers
 	handlers := api.NewHandlers(svc)
