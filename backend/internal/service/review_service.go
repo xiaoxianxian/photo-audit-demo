@@ -147,8 +147,8 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 }
 
 // ListAuditLogs returns paginated audit records filtered by action and review type.
-func (s *ReviewService) ListAuditLogs(ctx context.Context, page, pageSize int, action, reviewType string) ([]model.AuditRecord, int64, error) {
-	return s.AuditLogRepo.ListAllFiltered(ctx, page, pageSize, action, reviewType)
+func (s *ReviewService) ListAuditLogs(ctx context.Context, tenantID string, page, pageSize int, action, reviewType string) ([]model.AuditRecord, int64, error) {
+	return s.AuditLogRepo.ListAllFiltered(ctx, tenantID, page, pageSize, action, reviewType)
 }
 func (s *ReviewService) BatchReview(ctx context.Context, input BatchReviewInput, tenantID string) ([]model.AuditRecord, error) {
 	action := model.ReviewAction(strings.ToLower(input.Action))

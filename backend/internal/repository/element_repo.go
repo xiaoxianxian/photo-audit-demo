@@ -121,23 +121,49 @@ func (r *ElementRepository) FindByContentID(ctx context.Context, contentID uuid.
 // FindByStatus returns elements matching the given AI and human status filters.
 // Optional filters: elementKind (for content element type), riskMin, riskMax (risk score range).
 // sortField and sortOrder control the ORDER BY clause. page/pageSize control pagination.
-func (r *ElementRepository) FindByStatus(ctx context.Context, aiStatus, humanStatus string, elementKind string, riskMin, riskMax int, sortField, sortOrder string, page, pageSize int) ([]model.ContentElement, int64, error) {
-	whereParts := []string{"ai_status = $1", "human_status = $2"}
-	args := []interface{}{aiStatus, humanStatus}
-	idx := 3
+func (r *ElementRepository) FindByStatus(ctx context.Context, tenantID string, aiStatus, humanStatus string, elementKind string, riskMin, riskMax int, sortField, sortOrder string, page, pageSize int) ([]model.ContentElement, int64, error) {
+	// P0-1: content_elements has no tenant_id column; filter through contents.
+	fromClause := "content_elements"
+	if tenantID != "" {
+		fromClause = "content_elements ce JOIN contents c ON c.id = ce.content_id"
+	}
+	col := func(name string) string {
+		if tenantID != "" {
+			return "ce." + name
+		}
+		return name
+	}
+	prefixSel := ""
+	if tenantID != "" {
+		prefixSel = "ce."
+	}
+	whereParts := []string{}
+	args := []interface{}{}
+	idx := 1
+	if tenantID != "" {
+		whereParts = append(whereParts, fmt.Sprintf("c.tenant_id = $%d", idx))
+		args = append(args, tenantID)
+		idx++
+	}
+	whereParts = append(whereParts, fmt.Sprintf("%s = $%d", col("ai_status"), idx))
+	args = append(args, aiStatus)
+	idx++
+	whereParts = append(whereParts, fmt.Sprintf("%s = $%d", col("human_status"), idx))
+	args = append(args, humanStatus)
+	idx++
 
 	if elementKind != "" {
-		whereParts = append(whereParts, fmt.Sprintf("element_kind = $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%s = $%d", col("element_kind"), idx))
 		args = append(args, elementKind)
 		idx++
 	}
 	if riskMin > 0 {
-		whereParts = append(whereParts, fmt.Sprintf("ai_risk_score >= $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%s >= $%d", col("ai_risk_score"), idx))
 		args = append(args, riskMin)
 		idx++
 	}
 	if riskMax < 100 {
-		whereParts = append(whereParts, fmt.Sprintf("ai_risk_score <= $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%s <= $%d", col("ai_risk_score"), idx))
 		args = append(args, riskMax)
 		idx++
 	}
@@ -151,21 +177,20 @@ func (r *ElementRepository) FindByStatus(ctx context.Context, aiStatus, humanSta
 	if field == "" {
 		field = "created_at"
 	}
-	orderClause := field + " " + sortOrder
+	orderClause := col(field) + " " + sortOrder
 
-	countQ := fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s", strings.Join(whereParts[:2], " AND "))
-	// Rebuild count with same dynamic conditions
-	if len(whereParts) > 2 {
-		countQ = fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s", strings.Join(whereParts, " AND "))
-	}
+	countQ := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", fromClause, strings.Join(whereParts, " AND "))
 	var total int64
 	if err := r.db.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count elements by status: %w", err)
 	}
 
 	listQ := fmt.Sprintf(
-		`SELECT id, content_id, element_kind, element_content, ai_risk_score, ai_risk_types, ai_confidence, ai_status, human_status, is_conflict, created_at, updated_at
-		FROM content_elements WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
+		`SELECT %s, %scontent_id, %selement_kind, %selement_content, %sai_risk_score, %sai_risk_types, %sai_confidence, %sai_status, %shuman_status, %sis_conflict, %screated_at, %supdated_at
+		FROM %s WHERE %s ORDER BY %s LIMIT $%d OFFSET $%d`,
+		col("id"),
+		prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel, prefixSel,
+		fromClause,
 		strings.Join(whereParts, " AND "),
 		orderClause,
 		idx, idx+1,
@@ -262,7 +287,7 @@ func (r *ElementRepository) MarkConflict(ctx context.Context, id uuid.UUID, isCo
 
 // CountByFilters returns counts for the review stats bar: pending_human, human_passed, human_rejected, conflict.
 // Applies the same filters as FindByStatus (ai_status, human_status, elementKind, riskMin, riskMax).
-func (r *ElementRepository) CountByFilters(ctx context.Context, aiStatus, humanStatus, elementKind string, riskMin, riskMax int) (struct {
+func (r *ElementRepository) CountByFilters(ctx context.Context, tenantID string, aiStatus, humanStatus, elementKind string, riskMin, riskMax int) (struct {
 	PendingHuman    int64
 	HumanPassed     int64
 	HumanRejected   int64
@@ -275,32 +300,47 @@ func (r *ElementRepository) CountByFilters(ctx context.Context, aiStatus, humanS
 		Conflict        int64
 	}
 
+	// P0-1: filter through contents when tenant scoping is requested.
+	fromClause := "content_elements"
+	if tenantID != "" {
+		fromClause = "content_elements ce JOIN contents c ON c.id = ce.content_id"
+	}
+	prefix := ""
+	if tenantID != "" {
+		prefix = "ce."
+	}
+
 	whereParts := []string{}
 	var args []interface{}
 	idx := 1
 
+	if tenantID != "" {
+		whereParts = append(whereParts, fmt.Sprintf("c.tenant_id = $%d", idx))
+		args = append(args, tenantID)
+		idx++
+	}
 	if aiStatus != "" {
-		whereParts = append(whereParts, fmt.Sprintf("ai_status = $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%sai_status = $%d", prefix, idx))
 		args = append(args, aiStatus)
 		idx++
 	}
 	if humanStatus != "" {
-		whereParts = append(whereParts, fmt.Sprintf("human_status = $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%shuman_status = $%d", prefix, idx))
 		args = append(args, humanStatus)
 		idx++
 	}
 	if elementKind != "" {
-		whereParts = append(whereParts, fmt.Sprintf("element_kind = $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%selement_kind = $%d", prefix, idx))
 		args = append(args, elementKind)
 		idx++
 	}
 	if riskMin > 0 {
-		whereParts = append(whereParts, fmt.Sprintf("ai_risk_score >= $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%sai_risk_score >= $%d", prefix, idx))
 		args = append(args, riskMin)
 		idx++
 	}
 	if riskMax < 100 {
-		whereParts = append(whereParts, fmt.Sprintf("ai_risk_score <= $%d", idx))
+		whereParts = append(whereParts, fmt.Sprintf("%sai_risk_score <= $%d", prefix, idx))
 		args = append(args, riskMax)
 		idx++
 	}
@@ -310,30 +350,30 @@ func (r *ElementRepository) CountByFilters(ctx context.Context, aiStatus, humanS
 		baseWhere = strings.Join(whereParts, " AND ")
 	}
 
+	countIn := func(extra string, dest *int64) error {
+		q := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s%s", fromClause, baseWhere, extra)
+		return r.db.QueryRow(ctx, q, args...).Scan(dest)
+	}
+
 	// Count pending_human
-	var pendingQ string
 	if humanStatus == "" {
-		pendingQ = fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s AND human_status = 'pending_human'", baseWhere)
-		if err := r.db.QueryRow(ctx, pendingQ).Scan(&result.PendingHuman); err != nil {
+		if err := countIn(" AND "+prefix+"human_status = 'pending_human'", &result.PendingHuman); err != nil {
 			return result, fmt.Errorf("count pending_human: %w", err)
 		}
 	}
 
 	// Count human_passed
-	passedQ := fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s AND human_status = 'human_passed'", baseWhere)
-	if err := r.db.QueryRow(ctx, passedQ).Scan(&result.HumanPassed); err != nil {
+	if err := countIn(" AND "+prefix+"human_status = 'human_passed'", &result.HumanPassed); err != nil {
 		return result, fmt.Errorf("count human_passed: %w", err)
 	}
 
 	// Count human_rejected
-	rejectedQ := fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s AND human_status = 'human_rejected'", baseWhere)
-	if err := r.db.QueryRow(ctx, rejectedQ).Scan(&result.HumanRejected); err != nil {
+	if err := countIn(" AND "+prefix+"human_status = 'human_rejected'", &result.HumanRejected); err != nil {
 		return result, fmt.Errorf("count human_rejected: %w", err)
 	}
 
 	// Count conflict
-	conflictQ := fmt.Sprintf("SELECT COUNT(*) FROM content_elements WHERE %s AND is_conflict = true", baseWhere)
-	if err := r.db.QueryRow(ctx, conflictQ).Scan(&result.Conflict); err != nil {
+	if err := countIn(" AND "+prefix+"is_conflict = true", &result.Conflict); err != nil {
 		return result, fmt.Errorf("count conflict: %w", err)
 	}
 

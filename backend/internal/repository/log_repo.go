@@ -142,34 +142,50 @@ func (r *LogRepository) FindByReviewer(ctx context.Context, reviewerID uuid.UUID
 }
 
 // ListAll returns a paginated list of all audit records, ordered by created_at desc.
+// No tenant scoping — callers must be platform-admin only.
 func (r *LogRepository) ListAll(ctx context.Context, page, pageSize int) ([]model.AuditRecord, int64, error) {
-	return r.ListAllFiltered(ctx, page, pageSize, "", "")
+	return r.ListAllFiltered(ctx, "", page, pageSize, "", "")
 }
 
 // ListAllFiltered returns a paginated list of audit records with optional action/review_type filters.
-func (r *LogRepository) ListAllFiltered(ctx context.Context, page, pageSize int, action, reviewType string) ([]model.AuditRecord, int64, error) {
+func (r *LogRepository) ListAllFiltered(ctx context.Context, tenantID string, page, pageSize int, action, reviewType string) ([]model.AuditRecord, int64, error) {
 	offset := (page - 1) * pageSize
 	if offset < 0 {
 		offset = 0
 	}
 
+	// P0-1: audit_records has no tenant_id column; filter through the join
+	// content_elements -> contents. When tenantID is empty (platform admin),
+	// no scoping is applied.
+	fromClause := "audit_records"
+	if tenantID != "" {
+		fromClause = "audit_records ar JOIN content_elements ce ON ce.id = ar.element_id JOIN contents c ON c.id = ce.content_id"
+	}
+	arPrefix := ""
+	cPrefix := ""
+	if tenantID != "" {
+		arPrefix = "ar."
+		cPrefix = "c."
+	}
+
 	// Build count query.
 	var countQ string
 	var countArgs []interface{}
-	if action != "" || reviewType != "" {
-		countQ = `SELECT COUNT(*) FROM audit_records WHERE 1=1`
-		idx := 1
-		if action != "" {
-			countQ += fmt.Sprintf(" AND action = $%d", idx)
-			countArgs = append(countArgs, action)
-			idx++
-		}
-		if reviewType != "" {
-			countQ += fmt.Sprintf(" AND review_type = $%d", idx)
-			countArgs = append(countArgs, reviewType)
-		}
-	} else {
-		countQ = `SELECT COUNT(*) FROM audit_records`
+	countQ = fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE 1=1`, fromClause)
+	idx := 1
+	if tenantID != "" {
+		countQ += fmt.Sprintf(" AND %stenant_id = $%d", cPrefix, idx)
+		countArgs = append(countArgs, tenantID)
+		idx++
+	}
+	if action != "" {
+		countQ += fmt.Sprintf(" AND %saction = $%d", arPrefix, idx)
+		countArgs = append(countArgs, action)
+		idx++
+	}
+	if reviewType != "" {
+		countQ += fmt.Sprintf(" AND %sreview_type = $%d", arPrefix, idx)
+		countArgs = append(countArgs, reviewType)
 	}
 	var total int64
 	if err := r.db.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
@@ -177,18 +193,17 @@ func (r *LogRepository) ListAllFiltered(ctx context.Context, page, pageSize int,
 	}
 
 	// Build list query.
-	var listQ string
+	listQ := fmt.Sprintf(
+		`SELECT %sid, %stask_id, %selement_id, %sreviewer_id, %sreview_type, %saction, %spenalty_level_code, %sreason, %scomment, %sai_score_before, %sai_score_after, %sis_conflict, %screated_at
+		 FROM %s WHERE 1=1`,
+		arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix, arPrefix,
+		fromClause,
+	)
 	var listArgs []interface{}
-	listQ = `SELECT id, task_id, element_id, reviewer_id, review_type, action, penalty_level_code, reason, comment, ai_score_before, ai_score_after, is_conflict, created_at FROM audit_records WHERE 1=1`
-	idx := 1
-	if action != "" {
-		listQ += fmt.Sprintf(" AND action = $%d", idx)
-		listArgs = append(listArgs, action)
-		idx++
-	}
-	if reviewType != "" {
-		listQ += fmt.Sprintf(" AND review_type = $%d", idx)
-		listArgs = append(listArgs, reviewType)
+	idx = 1
+	if tenantID != "" {
+		listQ += fmt.Sprintf(" AND %stenant_id = $%d", cPrefix, idx)
+		listArgs = append(listArgs, tenantID)
 		idx++
 	}
 	listQ += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", idx, idx+1)

@@ -81,7 +81,7 @@ func (h *ReviewHandler) ElementStats(c *fiber.Ctx) error {
 		riskMax = 100
 	}
 
-	stats, err := h.elementRepo.CountByFilters(c.Context(), aiStatus, humanStatus, elementKind, riskMin, riskMax)
+	stats, err := h.elementRepo.CountByFilters(c.Context(), c.Locals("tenant_id").(string), aiStatus, humanStatus, elementKind, riskMin, riskMax)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"code":    500,
@@ -145,7 +145,7 @@ func (h *ReviewHandler) ListPending(c *fiber.Ctx) error {
 		humanStatus = string(model.ElementPendingHuman)
 	}
 
-	elements, total, err := h.elementRepo.FindByStatus(c.Context(), aiStatus, humanStatus, elementKind, riskMin, riskMax, sortBy, sortOrder, page, pageSize)
+	elements, total, err := h.elementRepo.FindByStatus(c.Context(), c.Locals("tenant_id").(string), aiStatus, humanStatus, elementKind, riskMin, riskMax, sortBy, sortOrder, page, pageSize)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"code":    500,
@@ -457,7 +457,7 @@ func (h *ReviewHandler) ListAuditLogs(c *fiber.Ctx) error {
 		pageSize = 20
 	}
 
-	records, total, err := h.reviewSvc.ListAuditLogs(c.Context(), page, pageSize, action, reviewType)
+	records, total, err := h.reviewSvc.ListAuditLogs(c.Context(), c.Locals("tenant_id").(string), page, pageSize, action, reviewType)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"code":    500,

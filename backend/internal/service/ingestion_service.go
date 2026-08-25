@@ -409,7 +409,7 @@ func (s *IngestionService) TriggerAIReview(ctx context.Context, contentID uuid.U
 	// After AI review, notify online reviewers if elements need human review.
 	if s.wsHub != nil && tenantID != "" {
 		go func() {
-			stats, err := s.elementRepo.CountByFilters(ctx, string(model.ElementAIPassed), string(model.ElementPendingHuman), "", 0, 100)
+			stats, err := s.elementRepo.CountByFilters(ctx, tenantID, string(model.ElementAIPassed), string(model.ElementPendingHuman), "", 0, 100)
 			if err == nil && stats.PendingHuman > 0 {
 				s.wsHub.BroadcastNewTask(tenantID, contentID.String(), int(stats.PendingHuman))
 			}
