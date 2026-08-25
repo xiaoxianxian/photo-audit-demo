@@ -36,21 +36,29 @@
 
 `service/jwt.go` GenerateToken 签发 `iss=audit-platform`，而 `model/jwt_claims.go` NewJWTClaims 用 `iss=photo-audit-platform`。已统一为后者并加注释互指。历史 token 需重新登录获取。
 
-## 未解问题：HTTP 层条件性 404（不阻塞业务，需专项排查）
+## ✅ 已解问题：HTTP 层条件性 404（2026-08-25 晚间破案，commit `5da39a02`）
 
-**现象**：对运行中服务，携带 `Authorization + X-Tenant-ID(本人租户)` 的请求返回路由器级 404（"Cannot GET …"）；缺 X-Tenant-ID、或租户头非法/非成员时反而正常走中间件链。
+**现象**：携带 `Authorization + X-Tenant-ID(本人租户)` 的请求返回路由器级 404（"Cannot GET …"）；缺头/非法头/非成员租户时反而正常。
 
-**已排除**：路由注册缺失（diag 程序 + 运行时 ROUTE dump 双证齐全）、代理劫持（no_proxy 生效）、旧二进制（go version -m 为 devel）、tenant 中间件逻辑（三态输出符合源码）、limiter/cors 源码审查无嫌疑。
+**根因**：`middleware.Tenant()` 内部**直接函数调用**了 `Auth(cfg)` 返回的 handler，而 Auth 以 `c.Next()` 结尾。fiber 的 `c.Next()` 会推进 `Ctx.indexRoute` 路由栈指针，嵌套直调导致指针被多推一格、跳过真实路由：
+1. authMW(use) → `c.Next()` → indexRoute 指向 tenantMW
+2. tenantMW → 直调 `auth(c)` → 内层 `c.Next()` → indexRoute **跳过 ListPending**
+3. tenantMW 自己的 `c.Next()` 从栈尾继续扫 → `Cannot GET` 错误冒泡 → 全局错误处理器把已写好的 200 响应覆盖成 404
 
-**关键矛盾**：进程内打点显示 handler 进入且 `Next returned, status: 200`，但同一请求最终响应是 404 且错误在 logger 中间件浮出 —— 单请求内不可能先 200 后 404，疑似 fasthttp Ctx 池交叉污染或本机环境干扰。服务层直驱完全不受影响，生产影响面待评估。
+**定位过程**：三处打点（ENTRY/TENANT/HANDLER）发现日志顺序完全颠倒（最内层 handler 先执行完、中间件后到）；routeprobe 发现路由链只有 1 个 handler；最小复现工程逐项二分中间件组合，最终 NESTED=true（tenantMW 直调 authMW）一键复现、false 一切正常，实锤根因。
 
-## 遗留现场
+**修复**：Tenant() 改为从 `c.Locals` 读取 role/user_id（Auth 中间件已在 protected 组先行执行并填充），不再嵌套调用。签名 `Tenant(db, cfg)` → `Tenant(db)`。8 项 curl 终验全通（pending 200 / 无头400 / 冒充403 / dashboard / contents / appeals / audit-rules 全 200）。
 
-- 后端调试二进制可能仍在运行：`ps aux | grep audit-server` 后 kill
+## 遗留现场（已清理）
+
+- 调试二进制与临时 driver 已删，调试补丁已还原
 - 测试数据：内容 A/B 各元素状态已被冒烟脚本改变（A cover 已通过；B title 经历 reject→改判回滚→pending_human）
-- P0-1/2/3/5/6 待修（见 00-SUMMARY.md）
+- P0 全部修复完成，见 00-SUMMARY.md 台账
 
 ## 提交记录
 
 - `35e85689` fix: 冒烟测试发现的4个阻断性bug + 交接文档（前会话）
-- `f4ae99c9` fix: P0-4 改判外键违约 + JWT issuer 统一（本次）
+- `f4ae99c9` fix: P0-4 改判外键违约 + JWT issuer 统一
+- `5bb5b0a2` fix(P0-3) / `2b73937d` fix(P0-6) / `11e64c60` fix(P0-5)
+- `f5808f74` fix(P0-2) / `a052af3e` fix(P0-1)
+- `5da39a02` fix: HTTP 404 谜题破案（tenant 嵌套调用 auth 致路由栈错位）

@@ -58,11 +58,12 @@
 >
 > 回归：go test -race 全绿、tsc --noEmit 通过。
 >
+> **2026-08-25 晚间追加**：HTTP 404 谜题已破案并修复（`5da39a02`）——tenant 中间件嵌套直调 auth，
+> auth 内的 c.Next() 多推路由栈指针跳过真实路由。修复后 8 项 curl 终验全通，前端联调阻塞已解除。
+>
 > **遗留**：
-> 1. HTTP 层带 X-Tenant-ID 头返回路由级 404 异常未解（服务层正常，详见冒烟报告"未解问题"节）——前端联调前必须排查
-> 2. P0-2 计划中的 `GET /tenants/public` 公开端点未做（注册页当前用鉴权 getTenants）
-> 3. P1 高危项见上表"其他高危"节
+> 1. P0-2 计划中的 `GET /tenants/public` 公开端点未做（注册页当前用鉴权 getTenants）
+> 2. P1 高危项见上表"其他高危"节
 
-1. 排查 HTTP 404 异常（阻塞前端联调）
-2. 补 /tenants/public 公开端点
-3. P1 项按需排期
+1. 补 /tenants/public 公开端点（可选）
+2. P1 项按需排期
