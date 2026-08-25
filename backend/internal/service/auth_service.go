@@ -93,8 +93,20 @@ func (s *AuthService) Register(ctx context.Context, req model.CreateUserRequest)
 	if req.Password == "" {
 		return nil, errors.New("password is required")
 	}
-	if !ValidRoles[strings.ToLower(req.Role)] {
-		return nil, fmt.Errorf("invalid role: %s", req.Role)
+
+	// P0-2: public registration must not grant privileged roles. Only
+	// regular worker roles may self-register; admin roles are created by
+	// a platform/tenant administrator through authenticated endpoints.
+	role := strings.ToLower(strings.TrimSpace(req.Role))
+	if role == "" {
+		role = "reviewer" // default for clients that omit the field
+	}
+	allowedRoles := map[string]bool{"reviewer": true, "quality_checker": true}
+	if !allowedRoles[role] {
+		return nil, fmt.Errorf("invalid role: %s (privileged roles require an administrator)", req.Role)
+	}
+	if req.TenantID == nil || req.TenantID.String() == uuid.Nil.String() {
+		return nil, errors.New("tenant_id is required for registration")
 	}
 
 	// Check username uniqueness within the same tenant.
@@ -126,6 +138,9 @@ func (s *AuthService) Register(ctx context.Context, req model.CreateUserRequest)
 		Phone:       req.Phone,
 		Languages:   req.Languages,
 		Status:      1,
+	}
+	if user.Languages == nil {
+		user.Languages = []string{} // DB column is NOT NULL; empty slice instead of NULL
 	}
 
 	if req.TenantID != nil {

@@ -74,11 +74,19 @@ export async function postRegister(
   password: string,
   displayName?: string,
   email?: string,
+  tenantId?: string
 ): Promise<{ token: string; user: { id: string; username: string; role: string; tenant_id?: string } }> {
   return request({
     method: 'POST',
     url: '/auth/register',
-    data: { username, password, display_name: displayName, email, role: 'reviewer' },
+    data: {
+      username,
+      password,
+      display_name: displayName,
+      email,
+      role: 'reviewer',
+      tenant_id: tenantId || undefined,
+    },
   });
 }
 

@@ -58,6 +58,7 @@ const RegisterPage: React.FC = () => {
         values.password,
         values.display_name,
         values.email,
+        tenantId
       );
       const userInfo: UserInfo = {
         id: result.user?.id || '',
