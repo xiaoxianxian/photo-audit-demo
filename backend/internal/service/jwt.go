@@ -48,7 +48,7 @@ func GenerateToken(userID uuid.UUID, role string, tenantID *uuid.UUID, signingKe
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "audit-platform",
+			Issuer:    "photo-audit-platform", // keep in sync with model.NewJWTClaims
 		},
 	}
 

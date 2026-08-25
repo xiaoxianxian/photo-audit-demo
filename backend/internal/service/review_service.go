@@ -233,9 +233,23 @@ func (s *ReviewService) ResolveAppeal(ctx context.Context, appealID string, inpu
 	defer tx.Rollback(ctx)
 
 	// 1. Create audit record within transaction.
+	// P0-4 fix: audit_records.element_id has an FK to content_elements(id).
+	// The appeal is filed against a CONTENT, so pick a representative element
+	// of that content (the first rejected one, else the first element) instead
+	// of writing the content ID into the FK column.
+	recordElementID := appeal.ContentID // fallback only if the content has no elements
+	if elements, err := s.elementRepo.FindByContentID(ctx, appeal.ContentID); err == nil && len(elements) > 0 {
+		recordElementID = elements[0].ID
+		for _, elem := range elements {
+			if elem.HumanStatus == model.ElementHumanRejected {
+				recordElementID = elem.ID
+				break
+			}
+		}
+	}
 	record := &model.AuditRecord{
 		ID:            uuid.New(),
-		ElementID:     appeal.ContentID,
+		ElementID:     recordElementID,
 		ReviewerID:    &reviewerID,
 		ReviewType:    model.ReviewTypeAppeal,
 		Action:        action,
