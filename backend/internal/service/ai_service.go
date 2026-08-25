@@ -380,8 +380,10 @@ func parseJudgeResponse(body []byte) (int, error) {
 		return s, nil
 	}
 
-	// Fallback: no explicit score found; return 0 to indicate unclear result.
-	return 0, nil
+	// Fallback: no explicit score found; treat as a parse failure so callers
+	// skip the judge step instead of treating it as score=0 (which would
+	// falsely flag a conflict whenever the primary score is >20).
+	return 0, errors.New("no score found in judge response")
 }
 
 // GetAIConfigs retrieves all AI configuration items for a tenant.

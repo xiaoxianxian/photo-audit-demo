@@ -185,7 +185,7 @@ func TestParseJudgeResponse(t *testing.T) {
 		{
 			name:   "no score marker",
 			body:   `{"choices":[{"message":{"content":"looks good"}}]}`,
-			wantOK: false, // returns 0, nil
+			wantOK: false, // now returns an error (P0-6), not score=0
 		},
 	}
 
@@ -195,8 +195,8 @@ func TestParseJudgeResponse(t *testing.T) {
 			if tt.wantOK && err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
-			if !tt.wantOK && score != 0 {
-				t.Errorf("expected score 0, got %d", score)
+			if !tt.wantOK && err == nil {
+				t.Errorf("expected error for unparseable judge response (P0-6), got score=%d err=nil", score)
 			}
 		})
 	}
