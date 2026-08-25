@@ -131,9 +131,13 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 	}
 
 	// Trigger content-level decision after human review.
+	// P0-5: ctx here is the fiber/fasthttp request context — pooled and reused
+	// after the handler returns. Create an independent context for the goroutine.
 	if s.ingestionSvc != nil {
+		decisionCtx, decisionCancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		go func(contentID uuid.UUID) {
-			if err := s.ingestionSvc.TriggerContentDecision(ctx, contentID); err != nil {
+			defer decisionCancel()
+			if err := s.ingestionSvc.TriggerContentDecision(decisionCtx, contentID); err != nil {
 				reviewLog.Warn("content decision: %v", err)
 			}
 		}(elem.ContentID)

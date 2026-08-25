@@ -161,7 +161,14 @@ func (h *ContentHandler) Upload(c *fiber.Ctx) error {
 	}
 
 	// Trigger AI review asynchronously for all pending elements.
-	go h.ingestionSvc.TriggerAIReview(c.Context(), content.ID, req.TenantID)
+	// P0-5: c.Context() is a fasthttp RequestCtx that gets pooled and reused
+	// after the handler returns — never hand it to a background goroutine.
+	// Use an independent context with a timeout instead.
+	reviewCtx, reviewCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	go func() {
+		defer reviewCancel()
+		h.ingestionSvc.TriggerAIReview(reviewCtx, content.ID, req.TenantID)
+	}()
 
 	return c.JSON(fiber.Map{
 		"data": fiber.Map{
