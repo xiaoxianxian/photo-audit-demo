@@ -65,4 +65,19 @@
 > 公开返回启用租户 id+name（PublicTenantDTO 安全投影），注册页改用此端点，
 > "加入现有租户"下拉不再因 401 而为空。curl 终验通过。
 >
-> **遗留**：P1 高危项见上表"其他高危"节，按需排期。
+> **2026-08-26 P1 批量修复完成**（commit 见 git log）：
+>
+> | # | 项 | 修复 | 验证 |
+> |---|---|---|---|
+> | P1 | HumanReview check-then-act 竞态 | `review_service.go` 事务化 + `element_repo.FindByIDWithTx`（FOR UPDATE 行锁） | 真实PG 5并发：1 成功 + 4×409，恰好 1 条 audit_record |
+> | P1 | PUT /appeals/:id 旁路后门 | 路由删除 + `AppealHandler.Update`/`UpdateAppealRequestDTO` 移除；改判只走 `PUT /review/appeal/:id` | curl 实测后门 405，正规入口正常 |
+> | P1 | **新发现 P0**：ResolveAppeal 从不持久化 status → 已处理拦截永不生效、resolved 列表恒空 | `model.UpdateAppealRequest` 增加 Status 字段 + `UpdateWithTx` 写入 status 列 + service 传入 newStatus | DB 落库 `resolved_maintained`，二次改判被拦截 |
+> | P1 | Dashboard 添加成员表单未绑 Form 实例 → 永远提交空值 | TeamModal 两分支共用一个 form 实例并绑定 | tsc 通过 |
+> | P1 | Esc 无确认秒打回 | Review.tsx Esc 两段式确认（首次武装+3s超时+方向键解除），提示栏显示武装状态 | tsc 通过 |
+> | P1 | 批量选择跨页泄漏 | fetchElements 后过滤不在当前页的 selectedIds | tsc 通过 |
+> | P1 | level_code 全局 UNIQUE 租户间冲突 | 迁移 `002_level_code_tenant_unique.{up,down}.sql` + init.sql/001 修正为 UNIQUE(tenant_id, level_code) | 真实PG：同租户重复被拦、跨租户同名共存 |
+> | — | deployment 占位符/deploy-native.sh 删库 | 核查确认此前已修复，无需改动 | grep 无残留 |
+>
+> 回归：go test -race 全绿、tsc --noEmit 通过、冒烟数据已清理。
+>
+> **遗留**：P1 高危项见上表"其他高危"节中未列出的低优先项（前端 Dashboard 表单等已修）。

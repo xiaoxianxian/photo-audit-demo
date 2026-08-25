@@ -307,7 +307,11 @@ const TeamModal: React.FC<{
   onSubmit: (payload: { name?: string; leader_id?: string; user_id?: string; role?: string }) => void;
   leaders: UserInfo[];
 }> = ({ visible, mode, onCancel, onSubmit, leaders }) => {
-  const [form] = Form.useForm<{ name: string; leader_id: string }>();
+  // One shared instance covers both branches (create / add-member) — each
+  // branch renders its own <Form> but must bind THIS instance, otherwise
+  // validateFields() reads a detached store and always submits empty values.
+  type TeamFormValues = { name?: string; leader_id?: string; user_id?: string; role?: string };
+  const [form] = Form.useForm<TeamFormValues>();
 
   useEffect(() => {
     if (visible) form.resetFields();
@@ -316,11 +320,7 @@ const TeamModal: React.FC<{
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      if (mode === 'create') {
-        onSubmit(values);
-      } else {
-        onSubmit(values as unknown as { user_id: string; role: string });
-      }
+      onSubmit(values);
     } catch {
       // validation failed
     }
@@ -339,7 +339,7 @@ const TeamModal: React.FC<{
         onCancel={onCancel}
         onOk={handleSubmit}
       >
-        <Form<{ user_id: string; role: string }> layout="vertical">
+        <Form<TeamFormValues> form={form} layout="vertical">
           <Form.Item
             name="user_id"
             label="选择用户"
@@ -378,7 +378,7 @@ const TeamModal: React.FC<{
       onCancel={onCancel}
       onOk={handleSubmit}
     >
-      <Form<{ name: string; leader_id: string }> form={form} layout="vertical">
+      <Form<TeamFormValues> form={form} layout="vertical">
         <Form.Item
           name="name"
           label="团队名称"

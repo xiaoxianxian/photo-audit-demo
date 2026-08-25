@@ -218,12 +218,14 @@ CREATE INDEX idx_tenant_audit_rules_tenant_id ON tenant_audit_rules (tenant_id);
 CREATE TABLE tenant_audit_levels (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id   UUID NOT NULL REFERENCES tenants(id),
-    level_code  VARCHAR(32) NOT NULL UNIQUE,
+    level_code  VARCHAR(32) NOT NULL,
     level_name  VARCHAR(64) NOT NULL,
     description TEXT,
     status      SMALLINT NOT NULL DEFAULT 1
                 CHECK (status IN (0, 1)),
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Per-tenant uniqueness: two tenants may both define 'warning' etc.
+    CONSTRAINT uq_tenant_audit_levels_tenant_level UNIQUE (tenant_id, level_code)
 );
 
 COMMENT ON TABLE tenant_audit_levels IS

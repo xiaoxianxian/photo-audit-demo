@@ -284,6 +284,9 @@ const ReviewPage: React.FC = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const [newTaskCount, setNewTaskCount] = useState(0);
   const [consecutiveApproves, setConsecutiveApproves] = useState(0);
+  // P1 fix: Esc no longer rejects instantly. First press "arms" the reject
+  // (with a hint), second press within 3s confirms it.
+  const [escArmed, setEscArmed] = useState(false);
   const reviewerId = user?.id || '';
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -358,8 +361,18 @@ const ReviewPage: React.FC = () => {
         page,
         page_size: pageSize,
       });
-      setElements(data.items ?? []);
+      const items = data.items ?? [];
+      setElements(items);
       setTotal(data.total ?? 0);
+      // P1 fix: drop selections that are no longer on the current page
+      // (page switch / filter change / item resolved elsewhere) so stale
+      // IDs can't leak into a later batch operation invisibly.
+      const visible = new Set(items.map((e) => e.id));
+      setSelectedIds((prev) => {
+        if (prev.size === 0) return prev;
+        const next = new Set([...prev].filter((id) => visible.has(id)));
+        return next.size === prev.size ? prev : next;
+      });
     } catch {
       message.error('获取待审元素失败');
       setElements([]);
@@ -396,6 +409,7 @@ const ReviewPage: React.FC = () => {
     try {
       await humanReview(elementId, 'reject', reason, undefined, reviewerId);
       message.success('已打回');
+      setEscArmed(false);
       fetchElements();
     } catch {
       message.error('操作失败');
@@ -425,24 +439,41 @@ const ReviewPage: React.FC = () => {
           handleApprove(elements[focusedIndex].id);
         } else if (e.key === 'Escape') {
           e.preventDefault();
-          handleReject(elements[focusedIndex].id, '快捷键打回');
+          // P1 fix: two-stage confirm — first Esc arms, second Esc within
+          // the arm window rejects. Any other key disarms.
+          if (!escArmed) {
+            setEscArmed(true);
+            message.info('再按一次 Esc 确认打回，按其他键取消');
+          } else {
+            handleReject(elements[focusedIndex].id, '快捷键打回');
+          }
           setFocusedIndex(-1);
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
+          setEscArmed(false);
           setFocusedIndex((i) => Math.max(0, i - 1));
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
+          setEscArmed(false);
           setFocusedIndex((i) => Math.min(elements.length - 1, i + 1));
         }
       }
     },
-    [focusedIndex, elements, handleApprove, handleReject, consecutiveApproves],
+    [focusedIndex, elements, handleApprove, handleReject, consecutiveApproves, escArmed],
   );
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboardShortcut);
     return () => window.removeEventListener('keydown', handleKeyboardShortcut);
   }, [handleKeyboardShortcut]);
+
+  // Esc arm auto-disarms after 3s
+  useEffect(() => {
+    if (escArmed) {
+      const timer = setTimeout(() => setEscArmed(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [escArmed]);
 
   // WebSocket
   useEffect(() => {
@@ -495,7 +526,12 @@ const ReviewPage: React.FC = () => {
     }}>
       <span>← → 切换元素</span>
       <span>Space/Enter 通过</span>
-      <span>Esc 打回</span>
+      <span>Esc 打回（连按两次确认）</span>
+      {escArmed && (
+        <span style={{ color: COLORS.conflictOrange, fontWeight: 600 }}>
+          已武装打回 — 再按 Esc 确认
+        </span>
+      )}
       <span style={{ color: COLORS.brandBlue }}>
         当前: 第 {focusedIndex + 1}/{elements.length} 项
       </span>

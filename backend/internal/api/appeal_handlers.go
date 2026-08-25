@@ -31,13 +31,7 @@ type CreateAppealRequest struct {
 	ApplicantID  string   `json:"applicant_id" validate:"required"`
 }
 
-// UpdateAppealRequest represents the body for updating an existing appeal.
-type UpdateAppealRequest struct {
-	Status     *string `json:"status"`
-	Decision   *string `json:"decision"`
-	Comment    *string `json:"comment"`
-	ReviewerID *string `json:"reviewer_id"`
-}
+// UpdateAppealRequest was removed together with the retired PUT /api/v1/appeals/:id handler.
 
 // Submit handles POST /api/v1/appeals — submit a new appeal for a content item.
 func (h *AppealHandler) Submit(c *fiber.Ctx) error {
@@ -184,58 +178,9 @@ func (h *AppealHandler) ListByStatus(c *fiber.Ctx) error {
 	})
 }
 
-// Update handles PUT /api/v1/appeals/:id — update an existing appeal.
-func (h *AppealHandler) Update(c *fiber.Ctx) error {
-	idStr := c.Params("id")
-	if _, err := uuid.Parse(idStr); err != nil {
-		return c.JSON(fiber.Map{
-			"code":    400,
-			"message": "Invalid appeal ID format",
-		})
-	}
-
-	var req UpdateAppealRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.JSON(fiber.Map{
-			"code":    400,
-			"message": "Invalid request body: " + err.Error(),
-		})
-	}
-
-	if req.Status == nil && req.Decision == nil && req.Comment == nil && req.ReviewerID == nil {
-		return c.JSON(fiber.Map{
-			"code":    400,
-			"message": "At least one of status, decision, comment, reviewer_id must be provided",
-		})
-	}
-
-	if req.Decision != nil {
-		switch strings.ToLower(*req.Decision) {
-		case "approved", "maintained":
-			*req.Decision = strings.ToLower(*req.Decision)
-		default:
-			return c.JSON(fiber.Map{
-				"code":    400,
-				"message": "decision must be one of: approved, maintained",
-			})
-		}
-	}
-
-	updated, err := h.appealSvc.Update(c.Context(), idStr, service.UpdateAppealInput{
-		Status:     req.Status,
-		Decision:   req.Decision,
-		Comment:    req.Comment,
-		ReviewerID: req.ReviewerID,
-	})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"code":    500,
-			"message": "Failed to update appeal: " + err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"data":    updated,
-		"message": "Appeal updated successfully",
-	})
-}
+// Update and its PUT /api/v1/appeals/:id route were removed (2026-08-26):
+// the endpoint bypassed ResolveAppeal's already-resolved guard and applicant
+// notification, letting any authenticated caller overwrite resolution fields
+// directly (P1 backdoor). Appeal resolution must go through
+// PUT /api/v1/review/appeal/:id (ReviewHandler.ResolveAppeal).
+// service.UpdateAppealInput / AppealService.Update remain for internal callers.

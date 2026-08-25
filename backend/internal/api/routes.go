@@ -90,7 +90,10 @@ func SetupRoutes(app *fiber.App, handlers *Handlers, authMW fiber.Handler, tenan
 	appeal.Post("/", handlers.AppealHandler.Submit)
 	appeal.Get("/", handlers.AppealHandler.ListByStatus)
 	appeal.Get("/:id", handlers.AppealHandler.GetByID)
-	appeal.Put("/:id", handlers.AppealHandler.Update)
+	// NOTE: no PUT /:id here — appeal resolution must go through
+	// PUT /review/appeal/:id (ResolveAppeal), which enforces the
+	// already-resolved guard and notifies the applicant. The old bare
+	// update endpoint bypassed both (P1 backdoor, removed).
 
 	// Dashboard routes (under tenant isolation)
 	dashboard := protected.Group("/dashboard", tenantMW)

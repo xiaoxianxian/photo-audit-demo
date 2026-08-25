@@ -46,4 +46,5 @@ type UpdateAppealRequest struct {
 	Resolution   *string    `json:"resolution"`
 	PenaltyLevel *string    `json:"penalty_level_code"`
 	Comment      *string    `json:"comment"`
+	Status       *string    `json:"status"` // persisted lifecycle transition (e.g. resolved_maintained)
 }

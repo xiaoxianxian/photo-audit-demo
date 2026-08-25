@@ -67,6 +67,9 @@ func NewReviewService(elementRepo *repository.ElementRepository, appealRepo *rep
 
 // HumanReview processes a single human review decision on an element.
 // Validates that the element belongs to the requesting tenant.
+// The whole check-then-act sequence runs inside one transaction with a row
+// lock on the element, so concurrent/double reviews cannot both pass the
+// human_status guard (P1: double-penalty race).
 func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput, tenantID string) (*model.AuditRecord, error) {
 	action := model.ReviewAction(strings.ToLower(input.Action))
 	switch action {
@@ -75,7 +78,14 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 		return nil, fmt.Errorf("invalid review action: %s", input.Action)
 	}
 
-	elem, err := s.elementRepo.FindByID(ctx, input.ElementID)
+	// Transaction covers element re-read (FOR UPDATE) + audit_record + status update.
+	tx, err := s.elementRepo.BeginTx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("review human begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	elem, err := s.elementRepo.FindByIDWithTx(ctx, tx, input.ElementID)
 	if err != nil {
 		return nil, fmt.Errorf("review human: %w", err)
 	}
@@ -118,7 +128,7 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 		record.Comment = &input.Comment
 	}
 
-	if err := s.AuditLogRepo.Create(ctx, record); err != nil {
+	if err := s.AuditLogRepo.CreateWithTx(ctx, tx, record); err != nil {
 		return nil, fmt.Errorf("review human create log: %w", err)
 	}
 
@@ -126,8 +136,12 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 	if action == model.ActionReject {
 		humanStatus = model.ElementHumanRejected
 	}
-	if err := s.elementRepo.UpdateStatus(ctx, elem.ID, string(elem.AIStatus), string(humanStatus)); err != nil {
+	if err := s.elementRepo.UpdateStatusWithTx(ctx, tx, elem.ID, string(elem.AIStatus), string(humanStatus)); err != nil {
 		return nil, fmt.Errorf("review human update element: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("review human commit tx: %w", err)
 	}
 
 	// Trigger content-level decision after human review.
@@ -284,9 +298,13 @@ func (s *ReviewService) ResolveAppeal(ctx context.Context, appealID string, inpu
 	}
 
 	// 3. Update appeal status within transaction.
+	// P1 fix (2026-08-26): status was never persisted — appeals stayed
+	// 'submitted' forever, so the already-resolved guard never fired and
+	// resolved lists stayed empty.
 	updateReq := model.UpdateAppealRequest{
 		ReviewerID: &reviewerID,
 		Resolution: stringPtr(string(newStatus)),
+		Status:     stringPtr(string(newStatus)),
 	}
 	if input.Comment != "" {
 		updateReq.Comment = stringPtr(input.Comment)

@@ -146,6 +146,11 @@ func (r *AppealRepository) UpdateWithTx(ctx context.Context, tx txConn, id uuid.
 	args := make([]interface{}, 0, 5)
 	idx := 1
 
+	if req.Status != nil {
+		setParts = append(setParts, fmt.Sprintf("status = $%d", idx))
+		args = append(args, *req.Status)
+		idx++
+	}
 	if req.ReviewerID != nil {
 		setParts = append(setParts, fmt.Sprintf("reviewer_id = $%d", idx))
 		args = append(args, *req.ReviewerID)

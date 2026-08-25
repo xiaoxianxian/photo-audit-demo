@@ -443,3 +443,23 @@ func (r *ElementRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.
 	}
 	return e, nil
 }
+
+// FindByIDWithTx loads a single content element within a transaction and takes
+// a row-level lock (FOR UPDATE), so a concurrent HumanReview on the same
+// element blocks until the first transaction commits. This closes the
+// check-then-act race between the human_status guard and UpdateStatus.
+func (r *ElementRepository) FindByIDWithTx(ctx context.Context, tx txConn, id uuid.UUID) (*model.ContentElement, error) {
+	const q = `
+		SELECT id, content_id, element_kind, element_content, ai_risk_score, ai_risk_types, ai_confidence, ai_status, human_status, is_conflict, created_at, updated_at
+		FROM content_elements WHERE id = $1 FOR UPDATE`
+
+	e := &model.ContentElement{}
+	err := tx.QueryRow(ctx, q, id).Scan(
+		&e.ID, &e.ContentID, &e.ElementKind, &e.ElementContent, &e.AIRiskScore,
+		&e.AIRiskTypes, &e.AIConfidence, &e.AIStatus, &e.HumanStatus, &e.IsConflict, &e.CreatedAt, &e.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find element by id (tx): %w", err)
+	}
+	return e, nil
+}
