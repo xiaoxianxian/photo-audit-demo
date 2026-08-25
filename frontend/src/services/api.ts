@@ -102,6 +102,15 @@ export async function getTenants(
   return { items: res.tenants ?? [], total: res.total ?? 0 };
 }
 
+// Public tenant list for the unauthenticated registration page (id + name only).
+export async function getPublicTenants(): Promise<Array<{ id: string; name: string }>> {
+  const res = await request<{ tenants: Array<{ id: string; name: string }> }>({
+    method: 'GET',
+    url: '/tenants/public',
+  });
+  return res.tenants ?? [];
+}
+
 export async function createTenant(name: string, countryCode: string): Promise<{ id: string }> {
   return request({
     method: 'POST',

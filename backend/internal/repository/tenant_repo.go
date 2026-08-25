@@ -124,6 +124,27 @@ func (r *TenantRepository) List(ctx context.Context, page, pageSize int) ([]mode
 	return tenants, total, nil
 }
 
+// ListPublic returns active tenants for the unauthenticated registration page.
+// Only non-sensitive fields (id, name) are exposed.
+func (r *TenantRepository) ListPublic(ctx context.Context) ([]model.Tenant, error) {
+	rows, err := r.db.Query(ctx,
+		`SELECT id, name FROM tenants WHERE status = 1 ORDER BY name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list public tenants: %w", err)
+	}
+	defer rows.Close()
+
+	tenants := make([]model.Tenant, 0)
+	for rows.Next() {
+		var t model.Tenant
+		if err := rows.Scan(&t.ID, &t.Name); err != nil {
+			return nil, fmt.Errorf("scan public tenant row: %w", err)
+		}
+		tenants = append(tenants, t)
+	}
+	return tenants, rows.Err()
+}
+
 // Update performs a partial update of a tenant using dynamic SQL based on
 // which fields in the request are non-nil.
 func (r *TenantRepository) Update(ctx context.Context, id uuid.UUID, req *model.UpdateTenantRequest) error {

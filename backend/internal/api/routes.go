@@ -18,6 +18,7 @@ func SetupRoutes(app *fiber.App, handlers *Handlers, authMW fiber.Handler, tenan
 	// --- Public routes (no auth required) ---
 	api.Post("/auth/login", handlers.AuthHandler.Login)
 	api.Post("/auth/register", handlers.AuthHandler.Register)
+	api.Get("/tenants/public", handlers.TenantHandler.ListPublic)
 
 	// --- Protected routes (JWT required) ---
 	protected := api.Group("", authMW)

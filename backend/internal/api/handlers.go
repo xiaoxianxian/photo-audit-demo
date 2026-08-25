@@ -185,6 +185,17 @@ type TenantHandler struct {
 	tenantService *service.TenantService
 }
 
+// ListPublic handles GET /api/v1/tenants/public — active tenants (id + name)
+// for the unauthenticated registration page. Must be registered BEFORE the
+// tenant-protected group routes.
+func (h *TenantHandler) ListPublic(c *fiber.Ctx) error {
+	tenants, err := h.tenantService.ListPublic(c.Context())
+	if err != nil {
+		return resp.error(c, http.StatusInternalServerError, "internal server error", nil)
+	}
+	return resp.ok(c, fiber.Map{"tenants": tenants})
+}
+
 // List handles GET /api/v1/tenants with ?page=&page_size= query params.
 func (h *TenantHandler) List(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))

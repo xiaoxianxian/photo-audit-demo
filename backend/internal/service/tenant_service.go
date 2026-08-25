@@ -96,6 +96,12 @@ func (s *TenantService) List(ctx context.Context, page, pageSize int) ([]model.T
 	return tenants, total, nil
 }
 
+// ListPublic returns active tenants (id + name only) for the unauthenticated
+// registration page.
+func (s *TenantService) ListPublic(ctx context.Context) ([]model.Tenant, error) {
+	return s.tenantRepo.ListPublic(ctx)
+}
+
 // Update applies a partial update to an existing tenant.
 func (s *TenantService) Update(ctx context.Context, id uuid.UUID, req model.UpdateTenantRequest) (*model.Tenant, error) {
 	_, err := s.tenantRepo.FindByID(ctx, id)

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Form, Input, Button, Card, message, Typography, Select, Radio } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
-import { postRegister, getTenants, createTenant } from '@/services/api';
+import { postRegister, getPublicTenants, createTenant } from '@/services/api';
 import useAuthStore, { type UserInfo } from '@/stores/auth';
 import { COLORS, SPACING, FONT, RADIUS, SHADOW, ANIMATION } from '@/utils/constants';
 import { PasswordStrength } from '@/components/PasswordStrength';
@@ -20,11 +20,9 @@ const RegisterPage: React.FC = () => {
 
   useEffect(() => {
     setTenantsLoading(true);
-    getTenants(1, 100)
-      .then((res) => {
-        setTenants(
-          res.items.map((t) => ({ id: t.id, name: t.name }))
-        );
+    getPublicTenants()
+      .then((tenants) => {
+        setTenants(tenants);
       })
       .catch(() => setTenants([]))
       .finally(() => setTenantsLoading(false));
