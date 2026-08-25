@@ -185,6 +185,13 @@ type TenantHandler struct {
 	tenantService *service.TenantService
 }
 
+// PublicTenantDTO is the safe projection exposed on the unauthenticated
+// registration endpoint — id and name only.
+type PublicTenantDTO struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // ListPublic handles GET /api/v1/tenants/public — active tenants (id + name)
 // for the unauthenticated registration page. Must be registered BEFORE the
 // tenant-protected group routes.
@@ -193,7 +200,11 @@ func (h *TenantHandler) ListPublic(c *fiber.Ctx) error {
 	if err != nil {
 		return resp.error(c, http.StatusInternalServerError, "internal server error", nil)
 	}
-	return resp.ok(c, fiber.Map{"tenants": tenants})
+	items := make([]PublicTenantDTO, 0, len(tenants))
+	for _, t := range tenants {
+		items = append(items, PublicTenantDTO{ID: t.ID.String(), Name: t.Name})
+	}
+	return resp.ok(c, fiber.Map{"tenants": items})
 }
 
 // List handles GET /api/v1/tenants with ?page=&page_size= query params.
