@@ -157,7 +157,7 @@ appeals (1)
 - [x] 供稿图片拖拽/点击/批量上传
 - [x] 供稿图片拖拽/点击/批量上传
 - [x] 短视频文件上传（UploadFile 支持视频 MIME 检测 + ffmpeg 抽帧 + ASR 转写）
-- [ ] 直播 WebRTC 推流接入（RTMP 已完整实现，WebRTC 需集成 Coturn/mediasoup）
+- [x] 直播 WebRTC 接入（WHIP/WHEP 标准信令：POST /webrtc/whip|whep/:streamKey SDP 交换，媒体 P2P；前端 WebRTCPlayer 组件嵌入电视墙卡片「实时/截帧」切换）
 - [x] 缩略图/封面帧生成（MinIO 直链 + ffmpeg 抽帧）
 - [x] 视频抽帧 + ASR 转写（VideoProcessor: ffmpeg 抽帧 + ffprobe 测时长 + ASR API）
 - [x] 内容元素拆分（标题/评论/截帧图/ASR文本等）
@@ -484,7 +484,7 @@ appeals (1)
 **全部完成。** Phase 1 MVP 所有功能已实现。
 
 ### Phase 2 规划（独立子系统，后续进行）
-- **WebRTC 直播信令：** mediasoup SFU + SDP 交换 + 前端播放器替换
+- **WebRTC 直播信令：✅ 已完成（2026-08-26，be5b375f）** — 选择 WHIP/WHEP 标准信令替代 mediasoup（审核场景 1推N看、免独立SFU进程）；SignalingHub 内存会话 + tenant 隔离；媒体面 P2P，后续规模化可加 SRS/mediamtx 做媒体转发
 - **Kafka 审核任务队列：✅ 已完成（2026-08-26，ddaf70e1）** — internal/queue（segmentio/kafka-go）+ docker-compose KRaft 单节点；TriggerAIReview 发消息 → 消费组调 ProcessAIReviewContent；publish 失败自动回退进程内 goroutine。坑：kafka.DialLeader 会无限阻塞（改 DialContext+CreateTopics）；KAFKA_LISTENERS 禁写 0.0.0.0（须写 PLAINTEXT://:9092）
 - **Elasticsearch 全文检索：** 审核记录搜索 + 运营报表
 
@@ -520,3 +520,9 @@ appeals (1)
 ### 技术债务（后续修复）
 
 无遗留技术债务。Phase 1 MVP 全部完成，Phase 2/3 独立子系统需单独规划。
+
+- **2026-08-26：第三十四批 — Phase 2 三条线全部完成**
+  - **Kafka 审核任务队列（ddaf70e1）：** internal/queue（segmentio/kafka-go）+ docker-compose KRaft 单节点；TriggerAIReview 发消息 → 消费组调 ProcessAIReviewContent；publish 失败自动回退进程内 goroutine。坑：kafka.DialLeader 会无限阻塞（改 DialContext+CreateTopics）；KAFKA_LISTENERS 禁写 0.0.0.0
+  - **Elasticsearch 全文检索（836b599d）：** internal/search（go-elasticsearch v8）+ audit_records 索引自动创建；comment 字段 edge_ngram 中文分析器；人审提交后异步索引；GET /review/logs/search 带 PG 降级兜底；前端 AuditLog.tsx 搜索框 + 数据源指示器。坑：standard analyzer 中文拆单字导致误命中
+  - **WebRTC WHIP/WHEP 信令（be5b375f）：** SignalingHub 内存会话（TTL 5min）+ 4 个 SDP 端点；前端 WHEP 播放器（recvonly + 非 trickle ICE）；电视墙卡片实时/截帧切换。冒烟：offer→peek→answer 全链路 + DELETE 后 504 ✅
+  - 回归：go test -race 全绿、tsc --noEmit 通过，三批均真实容器冒烟验证
