@@ -44,6 +44,7 @@ type Config struct {
 	DeepSeekAPIKey    string
 	FallbackEnabled   bool // Enable local rule-based fallback when AI API unavailable
 	KafkaBrokers      []string // Kafka bootstrap servers; empty = queue disabled (in-process goroutines)
+	ElasticsearchURL  string   // ES base URL; empty = search disabled (PG-only listing)
 	JWTSecret         string
 	JWTMinLength      int `mapstructure:"JWT_MIN_LENGTH" default:"32"`
 	JWTExpiry         time.Duration
@@ -65,6 +66,7 @@ var defaults = map[string]string{
 	"DEEPSEEK_API_KEY":  "",
 	"FALLBACK_ENABLED":  "true",
 	"KAFKA_BROKERS":     "",
+	"ELASTICSEARCH_URL": "",
 	"JWT_SECRET":        "",
 	"JWT_EXPIRY":        "24h",
 	"ALLOWED_ORIGINS":   "*",
@@ -115,6 +117,7 @@ func Load() (*Config, error) {
 			}
 		}
 	}
+	c.ElasticsearchURL = envOr(cfg, "ELASTICSEARCH_URL")
 
 	// Parse JWT expiry.
 	c.JWTExpiry = parseDuration(envOr(cfg, "JWT_EXPIRY"))

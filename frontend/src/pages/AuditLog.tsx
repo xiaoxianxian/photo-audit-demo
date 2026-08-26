@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Table, Tag, message, Select, Typography, Tooltip } from 'antd';
+import { Table, Tag, message, Select, Typography, Tooltip, Input } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { getAuditLogs, type AuditLogItem } from '@/services/content-api';
+import { searchAuditLogs, type AuditLogItem } from '@/services/content-api';
 import AppLayout, { Content } from '@/components/Layout';
 import {
   COLORS,
@@ -47,22 +47,27 @@ const AuditLogPage: React.FC = () => {
   const [pageSize] = useState(20);
   const [filterAction, setFilterAction] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('');
+  // Phase 2: full-text search keyword (comment/reason) via Elasticsearch.
+  const [searchText, setSearchText] = useState<string>('');
+  const [source, setSource] = useState<string>('');
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, string> = { page: String(page), page_size: String(pageSize) };
+      const params: Record<string, string> = {};
       if (filterAction) params.action = filterAction;
       if (filterType) params.review_type = filterType;
-      const data = await getAuditLogs(page, pageSize, params);
+      if (searchText.trim()) params.q = searchText.trim();
+      const data = await searchAuditLogs(page, pageSize, params);
       setLogs(data.items ?? []);
+      setSource(data.source);
     } catch {
       message.error('获取审核日志失败');
       setLogs([]);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, filterAction, filterType]);
+  }, [page, pageSize, filterAction, filterType, searchText]);
 
   useEffect(() => {
     fetchLogs();
@@ -143,8 +148,14 @@ const AuditLogPage: React.FC = () => {
           </Title>
         </div>
 
-        {/* Filters */}
-        <div style={{ marginBottom: SPACING.base, display: 'flex', gap: SPACING.sm, flexWrap: 'wrap' }}>
+        {/* Filters + full-text search */}
+        <div style={{ marginBottom: SPACING.base, display: 'flex', gap: SPACING.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Input.Search
+            placeholder="搜索备注/原因关键词…"
+            allowClear
+            style={{ minWidth: 240 }}
+            onSearch={(val) => setSearchText(val)}
+          />
           <Select
             placeholder="操作类型"
             allowClear
@@ -181,6 +192,7 @@ const AuditLogPage: React.FC = () => {
           loading={loading}
           scroll={{ x: TABLE.scrollX }}
           pagination={TABLE.pagination}
+          footer={source ? () => <Text type="secondary" style={{ fontSize: FONT.caption }}>数据源：{source === 'elasticsearch' ? 'Elasticsearch' : 'PostgreSQL（降级）'}</Text> : undefined}
         />
       </Content>
     </AppLayout>

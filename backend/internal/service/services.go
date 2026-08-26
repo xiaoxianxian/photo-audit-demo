@@ -7,6 +7,7 @@ import (
 	"audit-platform/internal/config"
 	"audit-platform/internal/queue"
 	"audit-platform/internal/repository"
+	"audit-platform/internal/search"
 	"audit-platform/internal/storage"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -110,6 +111,18 @@ func NewServices(pool *pgxpool.Pool, jwtSecret string, cfg *config.Config) *Serv
 		ingestionSvc.WithProducer(kafkaProducer)
 	}
 
+	// Phase 2: Elasticsearch search client (optional). Attach to review service
+	// so every committed audit record is indexed asynchronously.
+	var esClient *search.Client
+	if cfg != nil && cfg.ElasticsearchURL != "" {
+		sc, err := search.New(cfg.ElasticsearchURL)
+		if err != nil {
+			fmt.Println("[WARN] elasticsearch init failed:", err)
+		} else {
+			esClient = sc
+		}
+	}
+
 	// Video processor for short_video preprocessing.
 	videoProc := NewVideoProcessor(elementRepo)
 	ingestionSvc.WithVideoProcessor(videoProc)
@@ -120,6 +133,9 @@ func NewServices(pool *pgxpool.Pool, jwtSecret string, cfg *config.Config) *Serv
 	aiSvc.WithAIConfigRepo(aiConfigRepo)
 
 	reviewSvc := NewReviewService(elementRepo, appealRepo, auditLogRepo, ingestionSvc, notifier, wsHub, contentRepo)
+	if esClient != nil {
+		reviewSvc.WithSearch(esClient)
+	}
 	appealSvc := NewAppealService(appealRepo, contentRepo, notifier)
 	dashSvc := NewDashboardService(auditLogRepo, elementRepo)
 	qualitySvc := NewQualityAuditService(qualityRepo, elementRepo, auditLogRepo)

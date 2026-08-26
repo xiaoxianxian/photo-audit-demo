@@ -7,6 +7,7 @@ import (
 
 	"audit-platform/internal/model"
 	"audit-platform/internal/repository"
+	"audit-platform/internal/search"
 	"audit-platform/internal/service"
 
 	"github.com/gofiber/fiber/v2"
@@ -470,6 +471,64 @@ func (h *ReviewHandler) ListAuditLogs(c *fiber.Ctx) error {
 		"total":     total,
 		"page":      page,
 		"page_size": pageSize,
+	})
+}
+
+// SearchAuditLogs handles GET /api/v1/review/logs/search — full-text search
+// over audit records via Elasticsearch (Phase 2). Falls back to the regular
+// PG listing when ES is not configured.
+func (h *ReviewHandler) SearchAuditLogs(c *fiber.Ctx) error {
+	pageStr := c.Query("page", "1")
+	pageSizeStr := c.Query("page_size", "20")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	var conflict *bool
+	if v := c.Query("is_conflict"); v == "true" || v == "false" {
+		b := v == "true"
+		conflict = &b
+	}
+
+	result, serr := h.reviewSvc.SearchAuditLogs(c.Context(), search.SearchQuery{
+		TenantID:   c.Locals("tenant_id").(string),
+		Text:       c.Query("q"),
+		Action:     c.Query("action"),
+		ReviewType: c.Query("review_type"),
+		ReviewerID: c.Query("reviewer_id"),
+		Conflict:   conflict,
+		Page:       page,
+		PageSize:   pageSize,
+	})
+	if serr != nil {
+		// Graceful fallback: ES unavailable → regular filtered listing.
+		records, total, lerr := h.reviewSvc.ListAuditLogs(c.Context(), c.Locals("tenant_id").(string), page, pageSize, c.Query("action"), c.Query("review_type"))
+		if lerr != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"code":    500,
+				"message": "Failed to search audit logs: " + serr.Error(),
+			})
+		}
+		return c.JSON(fiber.Map{
+			"data":      records,
+			"total":     total,
+			"page":      page,
+			"page_size": pageSize,
+			"source":    "postgres_fallback",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"data":      result.Items,
+		"total":     result.Total,
+		"page":      page,
+		"page_size": pageSize,
+		"source":    "elasticsearch",
 	})
 }
 

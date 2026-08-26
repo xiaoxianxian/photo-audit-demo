@@ -10,6 +10,7 @@ import (
 	"audit-platform/internal/logger"
 	"audit-platform/internal/model"
 	"audit-platform/internal/repository"
+	"audit-platform/internal/search"
 
 	"github.com/google/uuid"
 )
@@ -50,6 +51,29 @@ type ReviewService struct {
 	notifier      Notifier
 	WSHub         *Hub
 	contentRepo   *repository.ContentRepository
+	// ES search client (Phase 2, optional — nil when ELASTICSEARCH_URL unset).
+	searchCli     *search.Client
+}
+
+// WithSearch attaches the optional Elasticsearch client; audit records are
+// then indexed asynchronously after each review action.
+func (s *ReviewService) WithSearch(sc *search.Client) {
+	s.searchCli = sc
+}
+
+// indexRecordAsync best-effort indexes a record to ES after commit. Failures
+// are logged and never affect the review flow.
+func (s *ReviewService) indexRecordAsync(record *model.AuditRecord, tenantID string) {
+	if s.searchCli == nil || record == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.searchCli.IndexRecord(ctx, record, tenantID); err != nil {
+			reviewLog.Warn("es index record %s: %v", record.ID, err)
+		}
+	}()
 }
 
 // NewReviewService creates a new ReviewService.
@@ -144,6 +168,9 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 		return nil, fmt.Errorf("review human commit tx: %w", err)
 	}
 
+	// Phase 2: best-effort async index to Elasticsearch.
+	s.indexRecordAsync(record, tenantID)
+
 	// Trigger content-level decision after human review.
 	// P0-5: ctx here is the fiber/fasthttp request context — pooled and reused
 	// after the handler returns. Create an independent context for the goroutine.
@@ -163,6 +190,16 @@ func (s *ReviewService) HumanReview(ctx context.Context, input HumanReviewInput,
 // ListAuditLogs returns paginated audit records filtered by action and review type.
 func (s *ReviewService) ListAuditLogs(ctx context.Context, tenantID string, page, pageSize int, action, reviewType string) ([]model.AuditRecord, int64, error) {
 	return s.AuditLogRepo.ListAllFiltered(ctx, tenantID, page, pageSize, action, reviewType)
+}
+
+// SearchAuditLogs runs a full-text search over indexed audit records (Phase 2).
+// Returns an error when Elasticsearch is not wired — callers fall back to
+// the regular ListAuditLogs path.
+func (s *ReviewService) SearchAuditLogs(ctx context.Context, q search.SearchQuery) (*search.SearchResult, error) {
+	if s.searchCli == nil {
+		return nil, fmt.Errorf("search unavailable: elasticsearch not configured")
+	}
+	return s.searchCli.Search(ctx, q)
 }
 func (s *ReviewService) BatchReview(ctx context.Context, input BatchReviewInput, tenantID string) ([]model.AuditRecord, error) {
 	action := model.ReviewAction(strings.ToLower(input.Action))

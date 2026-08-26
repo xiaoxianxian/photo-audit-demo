@@ -254,6 +254,20 @@ export interface AuditLogItem {
   created_at: string;
 }
 
+// Phase 2: full-text search over audit records (Elasticsearch-backed).
+// The backend falls back to the PG listing when ES is unavailable.
+export async function searchAuditLogs(
+  page = 1,
+  pageSize = 20,
+  params?: { q?: string; action?: string; review_type?: string; reviewer_id?: string; is_conflict?: string },
+): Promise<{ items: AuditLogItem[]; total: number; source: string }> {
+  const res = await axiosInstance.get<Paginated<AuditLogItem[]> & { source?: string }>('/review/logs/search', {
+    params: { page, page_size: pageSize, ...params },
+  });
+  const d = unwrap<Paginated<AuditLogItem[]> & { source?: string }>(res);
+  return { items: d.data, total: d.total, source: d.source ?? 'postgres_fallback' };
+}
+
 export async function getAppeals(params?: Record<string, unknown>): Promise<{ items: AppealItem[]; total: number }> {
   const res = await axiosInstance.get<Paginated<AppealItem[]>>('/appeals', { params });
   const d = unwrap<Paginated<AppealItem[]>>(res);

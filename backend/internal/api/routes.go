@@ -83,6 +83,7 @@ func SetupRoutes(app *fiber.App, handlers *Handlers, authMW fiber.Handler, tenan
 	review.Get("/stats", handlers.ReviewHandler.ElementStats)
 	review.Get("/content/:contentId", handlers.ReviewHandler.GetElementsByContent)
 	review.Get("/logs", handlers.ReviewHandler.ListAuditLogs)
+	review.Get("/logs/search", handlers.ReviewHandler.SearchAuditLogs)
 	review.Get("/ws", websocket.New(handlers.ReviewHandler.WebSocket))
 
 	// Appeal routes (under tenant isolation)
