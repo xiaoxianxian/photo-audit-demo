@@ -80,7 +80,14 @@ metadata:
 - **进程守护**（systemd unit + 独立守护脚本，自动重启 + 防风暴）
 
 ### 未实现 [ ]
-- 直播 WebRTC 信令（RTMP 推流已完整实现，WebRTC 需额外集成 Coturn/mediasoup）
+- 直播 WebRTC 信令（WHIP/WHEP 标准信令，媒体 P2P，Phase 2 已完成 `be5b375f`）
+- Elasticsearch 全文检索（Phase 2 已完成 `836b599d`）
+
+### 未实现 [ ]（Phase 3 规划，见 docs/PHASE3-PLAN.md）
+- ES 运营报表聚合（T3-1：触发条件 100万条记录 + PRD 定稿）
+- K8s 部署配置（T3-2：稳定版决定 + CI/CD 流水线）
+- 媒体面 SRS 接入（T3-3：触发条件 50+ 并发 + 录像需求）
+- Redis 缓存层（T3-4：触发条件 >100 QPS）
 
 ## 已知陷阱
 - 模块路径已统一为 `audit-platform`
@@ -90,13 +97,19 @@ metadata:
 - Ant Design 5.x Select 不支持 `onClose` prop
 - 旧 `.jsx` 文件会与 `.tsx` 冲突（空文件 0 字节），必须删除
 - `backend/app/` Python FastAPI 代码已删除（iteration-v0 死代码）
+- **Phase 2 新增坑（2026-08-26）**：
+  - handlers.go 大括号计数：patch 时吞掉 struct 字面量收尾 `}` 导致函数不闭合
+  - edge_ngram 索引重建：新加分析器必须删旧索引重建，否则字段 mapping 不生效
+  - Kafka DialLeader 无限阻塞：已改为 DialContext + CreateTopics（5s 超时）
+  - KRaft listeners 禁写 0.0.0.0（须写 PLAINTEXT://:9092）
 
 ## 构建验证
 - `tsc --noEmit` → **0 errors** ✅
 - `vite build` → **成功** (~4s) ✅
 - `grep fmt.Printf` → **无结果** ✅
-- `grep txConn` → **仅 1 处声明** ✅
-- 最终验收：**2026-06-28，10/10 检查项全部 PASS** ✅
+- `go build ./...` → **成功** ✅
+- `go test -race ./...` → **全绿** ✅
+- 最终验收：**2026-06-28，10/10 检查项全部 PASS** ✅ + Phase 2 三批真实容器冒烟验证 ✅
 
 ## 当前状态
 - **已完成：** 33 批开发（P1 全部修复 + P2 全部修复 + WebSocket 任务分配 + 审核决策引擎 + AI 自动降级 + 文件上传校验 + Python 死代码清理 + 直播推流 + AI 模型配置后端持久化 + 视频指纹查重 + Dashboard 合并查询 + 结构化日志 + 进程守护 + 集成测试 + 技术债务清理 + 核心 bug 修复 + 用户申诉提交 + 注册租户选择 + 数据库约束完善 + 集成测试修复）

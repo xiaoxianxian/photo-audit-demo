@@ -1,6 +1,0 @@
-{
-  "schemaVersion": 1,
-  "tokenSource": "css.json",
-  "recommendedReadOrder": ["SKILL.md", "css.json", "components/index.json", "preview/", "uikit-plan.json"],
-  "coreComponents": ["button", "card", "table", "form", "navigation", "badge"]
-}

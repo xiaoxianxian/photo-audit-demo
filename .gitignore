@@ -26,3 +26,19 @@ Thumbs.db
 # Generated secrets
 .env.local
 .env.production
+
+# Design library (AI tool artifacts)
+.design_library/
+
+# Legacy static UI prototype (v0)
+photo-audit-ui/
+
+# Logs
+logs/
+
+# Uploads cache
+.uploads/
+
+# Legacy static prototype pages (v0)
+index.html
+report.html

@@ -133,6 +133,20 @@ metadata:
 
 无遗留。全部已清理。
 
+## Phase 2 完成记录（2026-08-26）
+
+- **Kafka 审核任务队列（`ddaf70e1`）** ✅ — internal/queue（segmentio/kafka-go）+ docker-compose KRaft 单节点；publish 失败自动回退 goroutine
+- **Elasticsearch 全文检索（`836b599d`）** ✅ — internal/search（go-elasticsearch v8）+ audit_records 索引 + edge_ngram 中文分析器
+- **WebRTC WHIP/WHEP 信令（`be5b375f`）** ✅ — SignalingHub 内存会话 + 4 个 SDP 端点 + 前端 WebRTCPlayer
+- **租户 RBAC 门禁（`447b6763`）** ✅ — RequireTenantAdmin 中间件，reviewer 不可增删改租户
+
+## Phase 3 规划（见 docs/PHASE3-PLAN.md）
+
+- T3-1: ES 运营报表聚合（触发：100万条 + PRD定稿）
+- T3-2: K8s 部署配置（触发：稳定版决定 + CI/CD）
+- T3-3: 媒体面 SRS 接入（触发：50+并发 + 录像需求）
+- T3-4: Redis 缓存层（触发：>100 QPS）
+
 - **第三十批：AuditCard.tsx 删除 + CountByReviewer 窗口函数优化** — 已用 LAG() 窗口函数替换 O(n²) 子查询 ✅
 
 - **第三十二批：用户申诉提交 + 注册租户选择 + 数据库约束完善**
