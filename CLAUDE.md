@@ -174,7 +174,7 @@ appeals (1)
 - [x] 额度/频率控制（DetectQuotaError 检测 402/429）
 - [x] 自动降级（检测到 402/429 时自动切换本地规则引擎 fallback，配置项 FALLBACK_ENABLED 默认 true）
 - [x] 视频指纹查重（simhash 算法 + video_processor 集成）
-- [x] 审核结果异步入库（goroutine 异步触发 AI review，非 Kafka）
+- [x] 审核结果异步入库（Phase 2 已升级 Kafka 队列：KAFKA_BROKERS 配置时走 audit-ai-review topic + 消费组，未配置或发布失败自动回退进程内 goroutine）
 - [x] 结构化日志系统（JSON 格式，替换所有 fmt.Printf）
 - [x] 进程守护（systemd unit + 独立守护脚本，自动重启 + 防风暴）
 
@@ -485,7 +485,7 @@ appeals (1)
 
 ### Phase 2 规划（独立子系统，后续进行）
 - **WebRTC 直播信令：** mediasoup SFU + SDP 交换 + 前端播放器替换
-- **Kafka 审核任务队列：** 解耦 AI 审核异步处理
+- **Kafka 审核任务队列：✅ 已完成（2026-08-26，ddaf70e1）** — internal/queue（segmentio/kafka-go）+ docker-compose KRaft 单节点；TriggerAIReview 发消息 → 消费组调 ProcessAIReviewContent；publish 失败自动回退进程内 goroutine。坑：kafka.DialLeader 会无限阻塞（改 DialContext+CreateTopics）；KAFKA_LISTENERS 禁写 0.0.0.0（须写 PLAINTEXT://:9092）
 - **Elasticsearch 全文检索：** 审核记录搜索 + 运营报表
 
 - **2026-06-28：第三十一批 — 核心 bug 修复**
