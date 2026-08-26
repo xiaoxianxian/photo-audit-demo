@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"audit-platform/internal/config"
+	"audit-platform/internal/queue"
 	"audit-platform/internal/repository"
 	"audit-platform/internal/storage"
 
@@ -43,6 +44,7 @@ type Services struct {
 	LiveWallService     *LiveWallService
 	WsHub               *Hub
 	StreamScheduler     *StreamScheduler
+	KafkaProducer       *queue.Producer // nil when KAFKA_BROKERS unset (queue disabled)
 
 	// Tenant config services.
 	RuleService  *TenantRuleService
@@ -99,6 +101,14 @@ func NewServices(pool *pgxpool.Pool, jwtSecret string, cfg *config.Config) *Serv
 
 	// Content-related services (wire AI service into ingestion first).
 	ingestionSvc := NewIngestionService(contentRepo, elementRepo, aiSvc, wsHub)
+
+	// Phase 2: Kafka queue — producer attaches to ingestion; the consumer runs
+	// in main.go after Services returns. nil producer = in-process goroutine path.
+	var kafkaProducer *queue.Producer
+	if cfg != nil && len(cfg.KafkaBrokers) > 0 {
+		kafkaProducer = queue.NewProducer(cfg.KafkaBrokers)
+		ingestionSvc.WithProducer(kafkaProducer)
+	}
 
 	// Video processor for short_video preprocessing.
 	videoProc := NewVideoProcessor(elementRepo)
@@ -165,6 +175,7 @@ func NewServices(pool *pgxpool.Pool, jwtSecret string, cfg *config.Config) *Serv
 		LiveWallService:     liveWallSvc,
 		WsHub:               wsHub,
 		StreamScheduler:     streamScheduler,
+		KafkaProducer:       kafkaProducer,
 		RuleService:         ruleSvc,
 		LevelService:        levelSvc,
 		WordService:         wordSvc,

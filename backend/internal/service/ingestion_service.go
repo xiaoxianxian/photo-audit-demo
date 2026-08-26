@@ -12,6 +12,7 @@ import (
 
 	"audit-platform/internal/logger"
 	"audit-platform/internal/model"
+	"audit-platform/internal/queue"
 	"audit-platform/internal/repository"
 
 	"github.com/google/uuid"
@@ -31,6 +32,12 @@ type IngestionService struct {
 	videoProc    *VideoProcessor
 	wsHub        *Hub
 	contentMu    sync.Map // contentID -> *sync.Mutex for per-content serialization
+
+	// Phase 2: optional Kafka producer. When set, TriggerAIReview publishes a
+	// queue task instead of running the review on in-process goroutines; the
+	// consumer calls ProcessAIReviewContent. Publish failures fall back to the
+	// in-process path so ingestion never blocks on broker availability.
+	producer *queue.Producer
 }
 
 // NewIngestionService creates a new IngestionService.
@@ -41,6 +48,11 @@ func NewIngestionService(contentRepo *repository.ContentRepository, elementRepo 
 		aiSvc:       aiSvc,
 		wsHub:       wsHub,
 	}
+}
+
+// WithProducer attaches the Kafka producer for queue-based AI review.
+func (s *IngestionService) WithProducer(p *queue.Producer) {
+	s.producer = p
 }
 
 // WithVideoProcessor attaches a VideoProcessor for video-specific preprocessing.
@@ -307,11 +319,40 @@ func (s *IngestionService) processVideoFromURL(ctx context.Context, videoURL str
 	return elements, nil
 }
 
-// TriggerAIReview sends all pending elements to Agnes AI asynchronously.
+// TriggerAIReview enqueues all pending elements of a content for AI review.
+// Phase 2: when a Kafka producer is attached the task is published to the
+// audit-ai-review topic and processed by the consumer group; publish failure
+// falls back to the legacy in-process path so ingestion never blocks on
+// broker availability.
+func (s *IngestionService) TriggerAIReview(ctx context.Context, contentID uuid.UUID, tenantID string) {
+	if s.aiSvc == nil {
+		return
+	}
+
+	// Queue path: hand off to Kafka consumer, which calls ProcessAIReviewContent.
+	if s.producer != nil {
+		pubCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := s.producer.Publish(pubCtx, queue.Message{
+			Kind:      queue.TaskKindAIReview,
+			TenantID:  tenantID,
+			ContentID: contentID.String(),
+		})
+		cancel()
+		if err == nil {
+			return
+		}
+		ingestionLog.Warn("kafka publish failed for content %s (%v), falling back to in-process review", contentID, err)
+	}
+
+	s.ProcessAIReviewContent(ctx, contentID, tenantID)
+}
+
+// ProcessAIReviewContent runs AI review for all pending elements of a content
+// item. Called directly by the in-process fallback and by the Kafka consumer.
 // If AI is unavailable, elements remain in pending_ai status for manual review.
 // After AI review completes, if elements are now pending human review, a WebSocket
 // notification is broadcast to online reviewers in the tenant.
-func (s *IngestionService) TriggerAIReview(ctx context.Context, contentID uuid.UUID, tenantID string) {
+func (s *IngestionService) ProcessAIReviewContent(ctx context.Context, contentID uuid.UUID, tenantID string) {
 	if s.aiSvc == nil {
 		return
 	}

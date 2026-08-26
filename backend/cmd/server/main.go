@@ -18,6 +18,7 @@ import (
 	"audit-platform/internal/config"
 	altlogger "audit-platform/internal/logger"
 	"audit-platform/internal/middleware"
+	"audit-platform/internal/queue"
 	"audit-platform/internal/service"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,6 +26,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -159,6 +161,33 @@ func main() {
 
 	// Start WebSocket hub in background
 	go svc.WsHub.Run()
+
+	// Phase 2: start Kafka AI-review consumer if the queue is configured.
+	// The consumer calls back into ingestion.ProcessAIReviewContent, so review
+	// work survives restarts and can scale horizontally (consumer group).
+	if svc.KafkaProducer != nil {
+		queue.EnsureTopic(ctx, cfg.KafkaBrokers)
+		consumer := queue.NewConsumer(cfg.KafkaBrokers, "audit-ai-review-workers",
+			func(ctx context.Context, msg queue.Message) error {
+				switch msg.Kind {
+				case queue.TaskKindAIReview:
+					contentID, err := uuid.Parse(msg.ContentID)
+					if err != nil {
+						return fmt.Errorf("bad content id %q: %w", msg.ContentID, err)
+					}
+					svc.IngestionService.ProcessAIReviewContent(ctx, contentID, msg.TenantID)
+					return nil
+				default:
+					return fmt.Errorf("unknown task kind: %s", msg.Kind)
+				}
+			})
+		consumerCtx, consumerCancel := context.WithCancel(ctx)
+		defer consumerCancel()
+		go consumer.Run(consumerCtx)
+		log.Printf("kafka consumer running (brokers=%v topic=%s)", cfg.KafkaBrokers, queue.AITopic)
+	} else {
+		log.Println("kafka not configured (KAFKA_BROKERS empty) — using in-process AI review")
+	}
 
 	// Start stream snapshot scheduler in background
 	go svc.StreamScheduler.Start(ctx)

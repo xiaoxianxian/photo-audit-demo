@@ -43,6 +43,7 @@ type Config struct {
 	AgnesAPIKey       string
 	DeepSeekAPIKey    string
 	FallbackEnabled   bool // Enable local rule-based fallback when AI API unavailable
+	KafkaBrokers      []string // Kafka bootstrap servers; empty = queue disabled (in-process goroutines)
 	JWTSecret         string
 	JWTMinLength      int `mapstructure:"JWT_MIN_LENGTH" default:"32"`
 	JWTExpiry         time.Duration
@@ -63,6 +64,7 @@ var defaults = map[string]string{
 	"AGNES_API_KEY":     "",
 	"DEEPSEEK_API_KEY":  "",
 	"FALLBACK_ENABLED":  "true",
+	"KAFKA_BROKERS":     "",
 	"JWT_SECRET":        "",
 	"JWT_EXPIRY":        "24h",
 	"ALLOWED_ORIGINS":   "*",
@@ -105,6 +107,13 @@ func Load() (*Config, error) {
 		DeepSeekAPIKey:  envOr(cfg, "DEEPSEEK_API_KEY"),
 		FallbackEnabled: envBool(cfg, "FALLBACK_ENABLED", true),
 		JWTSecret:       envOr(cfg, "JWT_SECRET"),
+	}
+	if v := envOr(cfg, "KAFKA_BROKERS"); v != "" {
+		for _, b := range strings.Split(v, ",") {
+			if b = strings.TrimSpace(b); b != "" {
+				c.KafkaBrokers = append(c.KafkaBrokers, b)
+			}
+		}
 	}
 
 	// Parse JWT expiry.
