@@ -24,6 +24,23 @@ func RequirePlatformAdmin() fiber.Handler {
 	}
 }
 
+// RequireTenantAdmin returns a Fiber middleware that allows only
+// "tenant_admin" and "platform_admin" roles. Must run AFTER the auth
+// middleware (it reads role from c.Locals). Used for tenant write operations
+// (create/update/delete) so regular reviewers cannot mutate tenants.
+func RequireTenantAdmin() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		role, ok := c.Locals("role").(string)
+		if !ok || (role != "tenant_admin" && role != "platform_admin") {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"code":    fiber.StatusForbidden,
+				"message": "tenant admin access required",
+			})
+		}
+		return c.Next()
+	}
+}
+
 // Tenant returns a Fiber middleware that enforces tenant isolation.
 //
 // It reads the X-Tenant-ID header, verifies that the requesting user belongs

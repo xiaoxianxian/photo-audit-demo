@@ -23,13 +23,14 @@ func SetupRoutes(app *fiber.App, handlers *Handlers, authMW fiber.Handler, tenan
 	// --- Protected routes (JWT required) ---
 	protected := api.Group("", authMW)
 
-	// Tenant-aware routes
+	// Tenant-aware routes. Read: any tenant member. Write (create/update/
+	// delete): tenant_admin / platform_admin only (RBAC gate).
 	tenant := protected.Group("/tenants", tenantMW)
 	tenant.Get("/", handlers.TenantHandler.List)
-	tenant.Post("/", handlers.TenantHandler.Create)
 	tenant.Get("/:id", handlers.TenantHandler.GetByID)
-	tenant.Put("/:id", handlers.TenantHandler.Update)
-	tenant.Delete("/:id", handlers.TenantHandler.Delete)
+	tenant.Post("/", middleware.RequireTenantAdmin(), handlers.TenantHandler.Create)
+	tenant.Put("/:id", middleware.RequireTenantAdmin(), handlers.TenantHandler.Update)
+	tenant.Delete("/:id", middleware.RequireTenantAdmin(), handlers.TenantHandler.Delete)
 
 	// Team routes (under tenant isolation)
 	team := protected.Group("/teams", tenantMW)
