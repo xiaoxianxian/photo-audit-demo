@@ -86,6 +86,13 @@ func SetupRoutes(app *fiber.App, handlers *Handlers, authMW fiber.Handler, tenan
 	review.Get("/logs/search", handlers.ReviewHandler.SearchAuditLogs)
 	review.Get("/ws", websocket.New(handlers.ReviewHandler.WebSocket))
 
+	// WebRTC WHIP/WHEP signaling (Phase 2) — SDP relay only, media is P2P.
+	webrtc := api.Group("/webrtc")
+	webrtc.Post("/whip/:streamKey", handlers.SignalingHandler.WhipPublish)
+	webrtc.Delete("/whip/:streamKey", handlers.SignalingHandler.WhipDelete)
+	webrtc.Post("/whep/:streamKey", handlers.SignalingHandler.WhepView)
+	webrtc.Get("/whep/:streamKey", handlers.SignalingHandler.WhepPeek)
+
 	// Appeal routes (under tenant isolation)
 	appeal := protected.Group("/appeals", tenantMW)
 	appeal.Post("/", handlers.AppealHandler.Submit)

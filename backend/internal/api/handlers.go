@@ -55,6 +55,7 @@ type Handlers struct {
 	LevelHandler         *TenantLevelHandler
 	WordHandler          *TenantWordHandler
 	AIConfigHandler      *AIConfigHandler
+	SignalingHandler     *SignalingHandler
 }
 
 // NewHandlers creates all handler instances from the Services container.
@@ -83,6 +84,7 @@ func NewHandlers(svc *service.Services) *Handlers {
 		LevelHandler:        NewTenantLevelHandler(svc.LevelService),
 		WordHandler:         NewTenantWordHandler(svc.WordService),
 		AIConfigHandler:     NewAIConfigHandler(svc.AIConfigService),
+		SignalingHandler:    NewSignalingHandler(),
 	}
 }
 

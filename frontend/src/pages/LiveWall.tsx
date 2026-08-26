@@ -20,6 +20,7 @@ import {
   WarningOutlined,
   PlusOutlined,
   CopyOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import {
   getLiveWall,
@@ -27,6 +28,7 @@ import {
   stopLiveStream,
   type LiveStreamWithSnapshot,
 } from '@/services/content-api';
+import WebRTCPlayer from '@/components/WebRTCPlayer';
 import AppLayout, { Content } from '@/components/Layout';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -56,6 +58,8 @@ const StreamTile: React.FC<{
   const riskScore = latestSnapshot?.ai_risk_score ?? 0;
   const riskTypes = latestSnapshot?.ai_risk_types ?? [];
   const isOffline = stream.status !== 'streaming' || !latestSnapshot?.snapshot_url;
+  // Phase 2: WebRTC live view toggle (WHEP viewer).
+  const [liveView, setLiveView] = useState(false);
 
   const handleCopyRTMP = () => {
     navigator.clipboard.writeText(stream.stream_url);
@@ -90,9 +94,13 @@ const StreamTile: React.FC<{
             : COLORS.borderDefault;
       }}
     >
-      {/* Snapshot image */}
+      {/* Snapshot image / WebRTC live view */}
       <div style={{ height: 140, background: COLORS.bgBase, position: 'relative' }}>
-        {latestSnapshot?.snapshot_url ? (
+        {liveView && !isOffline ? (
+          <div onClick={(e) => e.stopPropagation()}>
+            <WebRTCPlayer streamKey={stream.stream_key} height={140} />
+          </div>
+        ) : latestSnapshot?.snapshot_url ? (
           <img
             src={latestSnapshot.snapshot_url}
             alt="直播截帧"
@@ -163,9 +171,26 @@ const StreamTile: React.FC<{
             {latestSnapshot?.ai_confidence ? `${(latestSnapshot.ai_confidence * 100).toFixed(0)}%` : '--'}
           </Text>
         </div>
-        <Tag color={riskTagColor(riskScore)} style={{ margin: 0, fontSize: FONT.caption }}>
-          {riskLabel(riskScore)}
-        </Tag>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SPACING.xs }}>
+          {!isOffline && (
+            <Button
+              size="small"
+              type={liveView ? 'primary' : 'default'}
+              icon={<PlayCircleOutlined />}
+              style={{ height: SIZE.buttonSm, fontSize: FONT.caption, padding: '0 8px' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLiveView((v) => !v);
+              }}
+              aria-label="切换实时画面"
+            >
+              {liveView ? '截帧' : '实时'}
+            </Button>
+          )}
+          <Tag color={riskTagColor(riskScore)} style={{ margin: 0, fontSize: FONT.caption }}>
+            {riskLabel(riskScore)}
+          </Tag>
+        </div>
       </div>
 
       {/* RTMP URL + Stop button for active streams */}
