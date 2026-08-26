@@ -9,7 +9,7 @@
 - 后端：Go (Gin/Fiber) — Phase 1 单体，Phase 2 拆分微服务
 - 数据库：PostgreSQL（主存储）+ 分区表（audit_records / audit_logs 按月分区）
 - 缓存/队列：Redis（会话/电视墙状态）+ Kafka（审核任务队列，Phase 2 引入）
-- 搜索：Elasticsearch（审核记录全文检索、运营报表，Phase 3 引入）
+- 搜索：Elasticsearch（审核记录全文检索，Phase 2 已完成；运营报表暂不做，见 docs/PHASE3-PLAN.md）
 - 对象存储：MinIO（自建 S3 兼容，按租户隔离 bucket）
 - 实时通信：WebSocket（审核任务分配、直播电视墙刷新）
 - AI 模型：Agnes AI 多模态（视觉 + 文本统一审核）、DeepSeek（裁判模型/NLP）、ASR 转写
@@ -44,7 +44,7 @@ DEEPSEEK_API_KEY=sk-xxx
 # Kafka（Phase 2）
 KAFKA_BROKERS=localhost:9092
 
-# Elasticsearch（Phase 3）
+# Elasticsearch（Phase 2 已完成）
 ELASTICSEARCH_URL=http://localhost:9200
 
 # 服务端口
@@ -486,7 +486,7 @@ appeals (1)
 ### Phase 2 规划（独立子系统，后续进行）
 - **WebRTC 直播信令：✅ 已完成（2026-08-26，be5b375f）** — 选择 WHIP/WHEP 标准信令替代 mediasoup（审核场景 1推N看、免独立SFU进程）；SignalingHub 内存会话 + tenant 隔离；媒体面 P2P，后续规模化可加 SRS/mediamtx 做媒体转发
 - **Kafka 审核任务队列：✅ 已完成（2026-08-26，ddaf70e1）** — internal/queue（segmentio/kafka-go）+ docker-compose KRaft 单节点；TriggerAIReview 发消息 → 消费组调 ProcessAIReviewContent；publish 失败自动回退进程内 goroutine。坑：kafka.DialLeader 会无限阻塞（改 DialContext+CreateTopics）；KAFKA_LISTENERS 禁写 0.0.0.0（须写 PLAINTEXT://:9092）
-- **Elasticsearch 全文检索：** 审核记录搜索 + 运营报表
+- **Elasticsearch 全文检索：✅ 已完成（2026-08-26，836b599d）** — internal/search（go-elasticsearch v8）+ audit_records 索引自动创建；comment 字段 edge_ngram 中文分析器；人审提交后异步索引；GET /review/logs/search 带 PG 降级兜底；前端 AuditLog.tsx 搜索框 + 数据源指示器。坑：standard analyzer 中文拆单字导致误命中，改用 edge_ngram ✅；运营报表暂不做（PG 实测 2.7ms 无瓶颈）
 
 - **2026-06-28：第三十一批 — 核心 bug 修复**
   - **content_handlers.go 编译错误：** 修复 5 处 `ingestionLog` 未定义（应为 `contentLog`）；新增 `elementRepo` 字段到 ContentHandler struct + handlers.go 注入
